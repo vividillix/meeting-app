@@ -31,12 +31,15 @@ export default function Room() {
   }, [id]);
 
   /* ================== 기존 선택 복원 ================== */
-  useEffect(() => {
-    if (room && user) {
-      setSelected(room.votes?.[user.name] || []);
-    }
-  }, [room, user]);
+  const [initialized, setInitialized] = useState(false);
 
+  useEffect(() => {
+    if (room && user && !initialized) {
+      setSelected(room.votes?.[user.name] || []);
+      setInitialized(true);
+    }
+  }, [room, user, initialized]);
+  
   if (!room) return <div>loading...</div>;
 
   /* ================== 투표 로직 ================== */
@@ -156,7 +159,7 @@ export default function Room() {
                 `}
                 onClick={() => toggle(d)}
               >
-                {d} {isMine && "✅"}
+                {d}
 
                 {/* 🔥 hover 툴팁 */}
                 {people.length > 0 && (

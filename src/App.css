@@ -255,13 +255,10 @@ body {
   margin-bottom: 10px;
 }
 
-
-/* 기준 */
 .date-item {
   position: relative;
 }
 
-/* 툴팁 기본 숨김 */
 .tooltip {
   position: absolute;
   bottom: 110%;
@@ -277,11 +274,10 @@ body {
   white-space: nowrap;
 
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none;   /* 🔥 핵심 */
   transition: 0.2s;
 }
 
-/* 🔥 hover 시 표시 */
 .date-item:hover .tooltip {
   opacity: 1;
 }
