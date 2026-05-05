@@ -2,6 +2,7 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   background: #f5f6f8;
+  overflow: hidden;
 }
 
 .container {
@@ -13,12 +14,6 @@ body {
   box-shadow: 0 8px 20px rgba(0,0,0,0.08);
 }
 
-.title {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-
 .input {
   width: 100%;
   padding: 12px;
@@ -26,6 +21,8 @@ body {
   border-radius: 10px;
   border: 1px solid #ddd;
   font-size: 14px;
+  box-sizing: border-box;  /* 🔥 이거 추가 */
+
 }
 
 .button {
@@ -43,15 +40,248 @@ body {
   background: #4338ca;
 }
 
-.date-item {
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
+/* 내가 선택 */
+.date-item.selected {
+  background: #10b981;
+  color: white;
+}
+
+/* 🔥 다른 사람이 선택 */
+.date-item.others-selected {
+  background: #d1fae5;  /* 연한 초록 */
+  color: #065f46;
+}
+
+.date-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info-btn {
+  border: none;
+  background: none;
+  font-size: 14px;
+}
+
+.title {
+  color: midnightblue;
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+.room-title {
+  color: rgb(3, 3, 48);
+  font-size: 35px;
+  font-weight: bold;
+  margin: 15px;
+}
+
+.user {
+  margin-top: 8px;
+}
+
+.section {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-title {
+  font-weight: bold;
   margin-bottom: 8px;
+}
+
+.result-item {
+  padding: 10px;
+  margin-bottom: 6px;
+  background: #f9fafb;
+  border-radius: 6px;
+}
+
+.result-item.best {
+  background: #fde68a;
+  font-weight: bold;
+}
+
+.participants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  background: #e5e7eb;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.date-scroll {
+  height: 260px;              /* 핵심: max-height ❌ → height ✅ */
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 8px;
+  touch-action: pan-y;
+
+  -webkit-overflow-scrolling: touch; /* iOS 부드러운 스크롤 */
+}
+
+.mobile-container {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 16px;
+
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.section .date-scroll {
+  flex: 0 0 auto;   /* 부모 영향 안 받게 */
+}
+
+.date-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #e7e3eb;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+/* 헤더 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.share-btn {
+  border: none;
+  background: none;
+  font-size: 18px;
+}
+
+/* 중단 */
+.middle {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+  margin-top: 10px;
+  min-height: 0;  /* 🔥 이거 반드시 추가 */
+
+}
+
+/* 공통 카드 */
+.participants-box,
+.dates-box,
+.result-box {
+  background: #fbf8fe;
+  border-radius: 16px;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.participants-box,
+.dates-box {
+  overflow-y: auto;
+  min-height: 0;  /* 🔥 중요 */
+}
+
+/* 참가자 */
+.participant {
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+
+/* 날짜 */
+.date-item {
+  padding: 8px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: #f3f4f6;
   cursor: pointer;
 }
 
 .date-item.selected {
+  background: #10b981;
+  color: white;
+}
+
+/* 버튼 */
+.vote-btn {
+  margin-top: 10px;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
   background: #4f46e5;
   color: white;
+}
+
+/* 결과 */
+.result-box {
+  height: 25%;
+  margin-top: 10px;
+}
+
+.result-item {
+  padding: 8px;
+  margin-bottom: 6px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.result-item.best {
+  background: #fde68a;
+  font-weight: bold;
+}
+
+.no-result {
+  margin-bottom: 10px;
+}
+
+
+/* 기준 */
+.date-item {
+  position: relative;
+}
+
+/* 툴팁 기본 숨김 */
+.tooltip {
+  position: absolute;
+  bottom: 110%;
+  left: 0;
+
+  background: black;
+  color: white;
+  font-size: 12px;
+
+  padding: 6px 10px;
+  border-radius: 6px;
+
+  white-space: nowrap;
+
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.2s;
+}
+
+/* 🔥 hover 시 표시 */
+.date-item:hover .tooltip {
+  opacity: 1;
 }
