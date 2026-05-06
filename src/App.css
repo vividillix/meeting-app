@@ -1,3 +1,5 @@
+
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
@@ -6,23 +8,35 @@ body {
 }
 
 .container {
+  width: 70%;
   max-width: 420px;
   margin: 80px auto;
   padding: 24px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
+
+/* 🔥 PC에서는 넓히기 */
+/* @media (min-width: 768px) {
+  .container {
+    max-width: 600px;
+  }
+} */
 
 .input {
   width: 100%;
   padding: 12px;
-  margin-bottom: 10px;
+  margin: 5px;
+  /* margin-bottom: 10px; */
   border-radius: 10px;
   border: 1px solid #ddd;
   font-size: 14px;
   box-sizing: border-box;  /* 🔥 이거 추가 */
-
 }
 
 .button {
@@ -34,6 +48,17 @@ body {
   color: white;
   font-weight: 600;
   cursor: pointer;
+  margin: 5px;
+
+}
+
+.input,
+.button {
+  width: 100%;
+  padding: 12px;
+  margin: 0;
+  border-radius: 10px;
+  box-sizing: border-box;
 }
 
 .button:hover {
@@ -280,4 +305,45 @@ body {
 
 .date-item:hover .tooltip {
   opacity: 1;
+}
+
+.participant-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.kick-btn {
+  border: none;
+  background: none;
+  color: red;
+  cursor: pointer;
+}
+
+.date-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.date-label {
+  width: 60px;
+  font-size: small;
+  color: #322e36;
+}
+
+.date-input {
+  flex: 1;
+  min-width: 0;
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  color: #6b6375;
+
+}
+
+/* 🔥 크롬 date 내부 텍스트 깨짐 완화 */
+input[type="date"] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
 }
