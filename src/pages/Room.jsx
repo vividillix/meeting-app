@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
-import { doc, getDoc, updateDoc, deleteField } from "firebase/firestore";
 import { db } from "../firebase";
 import { useParams, useNavigate } from "react-router-dom";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  deleteField,
+  onSnapshot
+} from "firebase/firestore";
+
 
 export default function Room() {
   const { id } = useParams();
@@ -22,8 +30,8 @@ export default function Room() {
 
   /* ================== 데이터 가져오기 ================== */
   useEffect(() => {
-    const fetch = async () => {
-      const snap = await getDoc(doc(db, "rooms", id));
+
+    const unsub = onSnapshot(doc(db, "rooms", id), (snap) => {
 
       if (!snap.exists()) {
         alert("방이 존재하지 않음");
@@ -32,9 +40,10 @@ export default function Room() {
       }
 
       setRoom(snap.data());
-    };
+    });
 
-    fetch();
+    return () => unsub();
+
   }, [id]);
 
   /* ================== 내 투표 복원 ================== */
@@ -47,6 +56,8 @@ export default function Room() {
   if (!room) return <div>loading...</div>;
 
   const isHost = user?.name === room?.hostId;
+  console.log(user.name)
+  console.log(room.hostId)
   const votes = room.votes || {};
 
   /* ================== 날짜 선택 ================== */
@@ -78,13 +89,8 @@ export default function Room() {
     alert("저장 완료");
   };
 
-  /* ================== 강퇴 ================== */
-  const kickUser = async (target) => {
-    if (!isHost) {
-      alert("방장만 가능");
-      return;
-    }
-
+  /* ================== 강퇴/나가기 ================== */
+  const removeUser = async (target, isSelf = false) => {
     await updateDoc(doc(db, "rooms", id), {
       [`votes.${target}`]: deleteField()
     });
@@ -95,7 +101,73 @@ export default function Room() {
 
       return { ...prev, votes: newVotes };
     });
+
+    if (isSelf) {
+      localStorage.removeItem("user");
+      nav(`/join/${id}`);
+    }
   };
+
+  const kickUser = async (target) => {
+
+    if (!isHost) return;
+
+    const ok = window.confirm(
+      `${target} 님을 강퇴하시겠습니까?`
+    );
+
+    if (!ok) return;
+
+    removeUser(target);
+  };
+
+  const leaveRoom = async () => {
+    console.log(isHost)
+    // 방장인 경우
+    if (isHost) {
+
+      const ok = window.confirm(
+        "방을 삭제하시겠습니까?\n삭제하면 모든 데이터가 사라집니다."
+      );
+
+      if (!ok) return;
+
+      await deleteDoc(doc(db, "rooms", id));
+
+      localStorage.removeItem("user");
+
+      alert("방 삭제 완료");
+
+      nav("/");
+
+      return;
+    }
+
+    // 일반 참가자
+    const ok = window.confirm("방을 나가시겠습니까?");
+
+    if (!ok) return;
+
+    await updateDoc(doc(db, "rooms", id), {
+      [`votes.${user.name}`]: deleteField()
+    });
+
+    setRoom(prev => {
+      const newVotes = { ...prev.votes };
+
+      delete newVotes[user.name];
+
+      return {
+        ...prev,
+        votes: newVotes
+      };
+    });
+
+    localStorage.removeItem("user");
+
+    nav(`/join/${id}`);
+  };
+
 
   /* ================== 링크 복사 ================== */
   const copyLink = async () => {
@@ -156,9 +228,15 @@ export default function Room() {
       <div className="header">
         <div className="room-title">{room.title}</div>
 
-        <button className="share-btn" onClick={copyLink}>
-          🔗
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="share-btn" onClick={copyLink}>
+            🔗
+          </button>
+
+          <button className="share-btn" onClick={leaveRoom}>
+            🚪
+          </button>
+        </div>
       </div>
 
       {/* 중단 */}
@@ -170,7 +248,7 @@ export default function Room() {
             <div key={i} className="participant-row">
               <span>{p}</span>
 
-              {isHost && (
+              {isHost && p !== user.name && (
                 <button
                   className="kick-btn"
                   onClick={() => kickUser(p)}

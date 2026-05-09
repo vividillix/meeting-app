@@ -31,24 +31,24 @@ export default function Join() {
   if (!room) return <div>loading...</div>;
 
   const enter = async () => {
-    if (!name.trim() || !pw) {
-      alert("닉네임/비번 입력");
-      return;
-    }
 
     const snap = await getDoc(doc(db, "rooms", id));
-
-    if (!snap.exists()) {
-      alert("방 없음");
-      return;
-    }
-
     const room = snap.data();
       
     const cleanName = name.trim();
     const cleanPw = pw.trim();
     
     const userData = room.votes?.[cleanName];
+
+    if (!cleanName || !pw) {
+      alert("닉네임/비번 입력");
+      return;
+    }
+    
+    if (!snap.exists()) {
+      alert("방 없음");
+      return;
+    }
 
     console.log(room)
     console.log(userData)
@@ -60,24 +60,28 @@ export default function Join() {
         return;
       }
 
-      if (userData.password !== pw) {
+      if (userData.password !== cleanPw) {
         alert("비밀번호 틀림");
         return;
       }
 
-      localStorage.setItem("user", JSON.stringify({ id, name }));
+      localStorage.setItem("user", JSON.stringify({
+        id,
+        name: cleanName
+      }));      
       nav(`/room/${id}`);
       return;
     }
 
     /* ================= 신규 유저 ================= */
 
-    if (isExist) {
+    
+    if (userData) {
       alert("이미 존재하는 닉네임");
       return;
     }
 
-    const currentCount = Object.keys(users).length;
+    const currentCount = Object.keys(room.votes || {}).length;
 
     if (currentCount >= room.maxPeople) {
       alert("인원 가득");
@@ -111,7 +115,6 @@ export default function Join() {
         <button
           className="button"
           style={{
-            width: 100,
             background: mode === "new" ? "#4f46e5" : "#ccc"
           }}
           onClick={() => setMode("new")}
@@ -122,7 +125,6 @@ export default function Join() {
         <button
           className="button"
           style={{
-            width: 100,
             background: mode === "existing" ? "#4f46e5" : "#ccc"
           }}
           onClick={() => setMode("existing")}
