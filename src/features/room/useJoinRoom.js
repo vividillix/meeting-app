@@ -71,6 +71,7 @@ export function useJoinRoom() {
 
   return {
     room,
+    roomId,
     loading,
     mode,
     setMode,

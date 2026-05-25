@@ -18,7 +18,9 @@ export default function Join() {
 
   return (
     <div className="container">
-      <div className="title">입장</div>
+      <div className="title">{room.title}</div>
+
+      <div className="join-section-title">입장</div>
 
       <div className="mode-toggle">
         <button

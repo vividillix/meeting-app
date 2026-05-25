@@ -1,3 +1,4 @@
+import { APP_ORIGIN } from "../constants/app";
 import { ROOM_ERRORS } from "../constants/roomErrors";
 import * as roomRepository from "../repositories/roomRepository";
 import { generateDates } from "../utils/date";
@@ -175,5 +176,12 @@ export function getParticipantsForDate(votes, date) {
 }
 
 export function buildShareLink(roomId) {
-  return `${window.location.origin}/join/${roomId}`;
+  return `${APP_ORIGIN}/join/${roomId}`;
+}
+
+export function buildShareText({ roomId, title }) {
+  const url = buildShareLink(roomId);
+  const trimmedTitle = title?.trim();
+  if (!trimmedTitle) return url;
+  return `${trimmedTitle} ${url}`;
 }

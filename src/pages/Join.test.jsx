@@ -53,6 +53,8 @@ describe("Join", () => {
 
     await waitForJoinForm();
 
+    expect(screen.getByText("테스트 모임")).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "기존" }));
     await user.type(screen.getByPlaceholderText("닉네임"), "unknown");
     await user.type(screen.getByPlaceholderText("비밀번호"), "1234");

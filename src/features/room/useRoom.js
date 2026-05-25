@@ -138,8 +138,11 @@ export function useRoom() {
   };
 
   const copyShareLink = async () => {
-    const url = roomService.buildShareLink(roomId);
-    await navigator.clipboard.writeText(url);
+    const text = roomService.buildShareText({
+      roomId,
+      title: room?.title,
+    });
+    await navigator.clipboard.writeText(text);
     alert("복사됨");
   };
 
