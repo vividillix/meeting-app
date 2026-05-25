@@ -1,332 +1,161 @@
-import { useEffect, useState } from "react";
-import { db } from "../firebase";
-import { useParams, useNavigate } from "react-router-dom";
-import {
-  doc,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-  deleteField,
-  onSnapshot
-} from "firebase/firestore";
-
+import { useState } from "react";
+import { useRoom } from "../features/room/useRoom";
 
 export default function Room() {
-  const { id } = useParams();
-  const nav = useNavigate();
+  const {
+    room,
+    session,
+    selected,
+    isHost,
+    participants,
+    voteSummary,
+    toggleDate,
+    submitVote,
+    kickUser,
+    leaveRoom,
+    copyShareLink,
+    getParticipantsForDate,
+    isDateSelectedByOthers,
+  } = useRoom();
 
-  const [room, setRoom] = useState(null);
-  const [selected, setSelected] = useState([]);
+  const [resultPopupDate, setResultPopupDate] = useState(null);
 
-  const user = JSON.parse(localStorage.getItem("user"));
+  if (!room || !session) return <div className="loading">loading...</div>;
 
-  /* ================== 로그인 체크 ================== */
-  useEffect(() => {
-    if (!user || user.id !== id) {
-      alert("로그인 필요");
-      nav(`/join/${id}`);
-    }
-  }, [id]);
+  const { sorted, bestDates, noResult } = voteSummary;
 
-  /* ================== 데이터 가져오기 ================== */
-  useEffect(() => {
-
-    const unsub = onSnapshot(doc(db, "rooms", id), (snap) => {
-
-      if (!snap.exists()) {
-        alert("방이 존재하지 않음");
-        nav("/");
-        return;
-      }
-
-      setRoom(snap.data());
-    });
-
-    return () => unsub();
-
-  }, [id]);
-
-  /* ================== 내 투표 복원 ================== */
-  useEffect(() => {
-    if (room && user) {
-      setSelected(room.votes?.[user.name]?.dates || []);
-    }
-  }, [room]);
-
-  if (!room) return <div>loading...</div>;
-
-  const isHost = user?.name === room?.hostId;
-  console.log(user.name)
-  console.log(room.hostId)
-  const votes = room.votes || {};
-
-  /* ================== 날짜 선택 ================== */
-  const toggle = (date) => {
-    setSelected(prev =>
-      prev.includes(date)
-        ? prev.filter(d => d !== date)
-        : [...prev, date]
-    );
+  const toggleResultPopup = (date) => {
+    setResultPopupDate((prev) => (prev === date ? null : date));
   };
-
-  /* ================== 투표 저장 ================== */
-  const submitVote = async () => {
-    await updateDoc(doc(db, "rooms", id), {
-      [`votes.${user.name}.dates`]: selected
-    });
-
-    setRoom(prev => ({
-      ...prev,
-      votes: {
-        ...prev.votes,
-        [user.name]: {
-          ...prev.votes[user.name],
-          dates: selected
-        }
-      }
-    }));
-
-    alert("저장 완료");
-  };
-
-  /* ================== 강퇴/나가기 ================== */
-  const removeUser = async (target, isSelf = false) => {
-    await updateDoc(doc(db, "rooms", id), {
-      [`votes.${target}`]: deleteField()
-    });
-
-    setRoom(prev => {
-      const newVotes = { ...prev.votes };
-      delete newVotes[target];
-
-      return { ...prev, votes: newVotes };
-    });
-
-    if (isSelf) {
-      localStorage.removeItem("user");
-      nav(`/join/${id}`);
-    }
-  };
-
-  const kickUser = async (target) => {
-
-    if (!isHost) return;
-
-    const ok = window.confirm(
-      `${target} 님을 강퇴하시겠습니까?`
-    );
-
-    if (!ok) return;
-
-    removeUser(target);
-  };
-
-  const leaveRoom = async () => {
-    console.log(isHost)
-    // 방장인 경우
-    if (isHost) {
-
-      const ok = window.confirm(
-        "방을 삭제하시겠습니까?\n삭제하면 모든 데이터가 사라집니다."
-      );
-
-      if (!ok) return;
-
-      await deleteDoc(doc(db, "rooms", id));
-
-      localStorage.removeItem("user");
-
-      alert("방 삭제 완료");
-
-      nav("/");
-
-      return;
-    }
-
-    // 일반 참가자
-    const ok = window.confirm("방을 나가시겠습니까?");
-
-    if (!ok) return;
-
-    await updateDoc(doc(db, "rooms", id), {
-      [`votes.${user.name}`]: deleteField()
-    });
-
-    setRoom(prev => {
-      const newVotes = { ...prev.votes };
-
-      delete newVotes[user.name];
-
-      return {
-        ...prev,
-        votes: newVotes
-      };
-    });
-
-    localStorage.removeItem("user");
-
-    nav(`/join/${id}`);
-  };
-
-
-  /* ================== 링크 복사 ================== */
-  const copyLink = async () => {
-    const url = `${window.location.origin}/join/${id}`;
-    await navigator.clipboard.writeText(url);
-    alert("복사됨");
-  };
-
-  /* ================== 날짜별 투표 수 ================== */
-  const results = {};
-
-  Object.values(votes).forEach(user => {
-    if (!user || !Array.isArray(user.dates)) return;
-
-    user.dates.forEach(date => {
-      results[date] = (results[date] || 0) + 1;
-    });
-  });
-
-  /* ================== 정렬 ================== */
-  const sorted = Object.entries(results).sort((a, b) => {
-    if (b[1] === a[1]) return a[0].localeCompare(b[0]);
-    return b[1] - a[1];
-  });
-
-  /* ================== 과반 + 최다 ================== */
-  const total = Object.keys(votes).length;
-  const majority = Math.floor(total / 2) + 1;
-
-  const majorityDates = Object.entries(results)
-    .filter(([_, count]) => count >= majority);
-
-  let bestDates = [];
-
-  if (majorityDates.length > 0) {
-    const max = Math.max(...majorityDates.map(([_, c]) => c));
-
-    bestDates = majorityDates
-      .filter(([_, c]) => c === max)
-      .map(([d]) => d);
-  }
-
-  const noResult = bestDates.length === 0;
-
-  /* ================== 날짜별 참여자 ================== */
-  const getParticipants = (date) => {
-    return Object.entries(votes)
-      .filter(([_, u]) => u?.dates?.includes(date))
-      .map(([name]) => name);
-  };
-
-  const participants = Object.keys(votes);
 
   return (
-    <div className="app">
-
-      {/* 헤더 */}
+    <div className="container container--room">
       <div className="header">
         <div className="room-title">{room.title}</div>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="share-btn" onClick={copyLink}>
-            🔗
+        <div className="header-actions">
+          <button type="button" className="text-btn" onClick={copyShareLink}>
+            공유
           </button>
 
-          <button className="share-btn" onClick={leaveRoom}>
-            🚪
+          <button type="button" className="text-btn" onClick={leaveRoom}>
+            나가기
           </button>
         </div>
       </div>
 
-      {/* 중단 */}
       <div className="middle">
-
-        {/* 참가자 */}
         <div className="participants-box">
-          {participants.map((p, i) => (
-            <div key={i} className="participant-row">
+          <div className="section-label">참가자 목록</div>
+          {participants.map((p) => (
+            <div key={p} className="participant-row">
               <span>{p}</span>
 
-              {isHost && p !== user.name && (
+              {isHost && p !== session.name && (
                 <button
-                  className="kick-btn"
+                  type="button"
+                  className="text-btn text-btn--danger"
                   onClick={() => kickUser(p)}
                 >
-                  ❌
+                  내보내기
                 </button>
               )}
             </div>
           ))}
         </div>
 
-        {/* 날짜 선택 */}
         <div className="dates-box">
-          {room.dates.map((date, i) => {
-            const d = String(date);
+          <div className="section-label">투표날짜</div>
+          <div className="dates-list">
+            {room.dates.map((date) => {
+              const d = String(date);
+              const isMine = selected.includes(d);
+              const isOthers = isDateSelectedByOthers(d);
 
-            const isMine = selected.includes(d);
+              const itemClass = [
+                "date-item",
+                isMine ? "selected" : "",
+                !isMine && isOthers ? "others-selected" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
 
-            const isOthers = Object.entries(votes).some(
-              ([name, u]) =>
-                name !== user.name && u?.dates?.includes(d)
-            );
-
-            const names = getParticipants(d);
-
-            return (
-              <div key={i} className="date-item">
-
-                <div
-                  className={`
-                    ${isMine ? "selected" : ""}
-                    ${!isMine && isOthers ? "others-selected" : ""}
-                  `}
-                  onClick={() => toggle(d)}
-                >
-                  {d} {isMine && "✅"}
-                </div>
-
-                {/* 툴팁 */}
-                {names.length > 0 && (
-                  <div className="tooltip">
-                    {names.join(", ")}
+              return (
+                <div key={d} className={itemClass}>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => toggleDate(d)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleDate(d);
+                      }
+                    }}
+                  >
+                    {d}
+                    {isMine && <span className="selected-badge">선택됨</span>}
                   </div>
-                )}
-
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 투표 버튼 */}
-      <button className="vote-btn" onClick={submitVote}>
-        투표하기
-      </button>
-
-      {/* 결과 */}
-      <div className="result-box">
-
-        {noResult && (
-          <div className="no-result">
-            아쉽게도 우리는 만날 수 없나봐요
+                </div>
+              );
+            })}
           </div>
-        )}
+        </div>
 
-        {sorted.map(([date, count], i) => {
-          const isBest = bestDates.includes(date);
+        <button type="button" className="vote-btn" onClick={submitVote}>
+          투표하기
+        </button>
 
-          return (
-            <div
-              key={i}
-              className={`result-item ${isBest ? "best" : ""}`}
-            >
-              {isBest && "⭐ "}
-              {date} ({count}명)
+        <div className="result-section">
+          <div className="result-box">
+            <div className="section-label">투표결과</div>
+
+            {noResult && (
+              <div className="no-result">아쉽게도 우리는 만날 수 없나봐요</div>
+            )}
+
+            {sorted.length > 0 && (
+              <div className="result-list">
+                {sorted.map(([date, count]) => {
+                  const isBest = bestDates.includes(date);
+
+                  return (
+                    <button
+                      key={date}
+                      type="button"
+                      className={`result-item ${isBest ? "best" : ""} ${
+                        resultPopupDate === date ? "result-item--active" : ""
+                      }`}
+                      onClick={() => toggleResultPopup(date)}
+                    >
+                      {isBest && "추천 · "}
+                      {date} ({count}명)
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {resultPopupDate && (
+            <div className="result-voters-popup" role="status">
+              <div className="result-voters-popup__header">
+                <span>{resultPopupDate} 투표자</span>
+                <button
+                  type="button"
+                  className="result-voters-popup__close"
+                  aria-label="투표자 목록 닫기"
+                  onClick={() => setResultPopupDate(null)}
+                >
+                  닫기
+                </button>
+              </div>
+              <p className="result-voters-popup__names">
+                {getParticipantsForDate(resultPopupDate).join(", ") || "없음"}
+              </p>
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
     </div>
   );
