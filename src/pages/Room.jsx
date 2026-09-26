@@ -6,6 +6,8 @@ export default function Room() {
     room,
     session,
     selected,
+    saving,
+    busy,
     isHost,
     participants,
     voteSummary,
@@ -38,7 +40,7 @@ export default function Room() {
             공유
           </button>
 
-          <button type="button" className="text-btn" onClick={leaveRoom}>
+          <button type="button" className="text-btn" onClick={leaveRoom} disabled={busy}>
             나가기
           </button>
         </div>
@@ -56,6 +58,7 @@ export default function Room() {
                   type="button"
                   className="text-btn text-btn--danger"
                   onClick={() => kickUser(p)}
+                  disabled={busy}
                 >
                   내보내기
                 </button>
@@ -102,8 +105,13 @@ export default function Room() {
           </div>
         </div>
 
-        <button type="button" className="vote-btn" onClick={submitVote}>
-          투표하기
+        <button
+          type="button"
+          className="vote-btn"
+          onClick={submitVote}
+          disabled={saving}
+        >
+          {saving ? "저장 중..." : "투표하기"}
         </button>
 
         <div className="result-section">

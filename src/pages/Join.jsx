@@ -1,3 +1,4 @@
+import { NICKNAME_MAX_LENGTH } from "../constants/app";
 import { useJoinRoom } from "../features/room/useJoinRoom";
 
 export default function Join() {
@@ -49,6 +50,7 @@ export default function Join() {
       <input
         className="input"
         placeholder="닉네임"
+        maxLength={NICKNAME_MAX_LENGTH}
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
@@ -61,7 +63,7 @@ export default function Join() {
         onChange={(e) => setPassword(e.target.value)}
       />
 
-      <button className="button" onClick={enter} disabled={submitting}>
+      <button type="button" className="button" onClick={enter} disabled={submitting}>
         입장
       </button>
     </div>

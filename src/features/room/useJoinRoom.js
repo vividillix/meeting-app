@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
-import { ROOM_ERRORS, ROOM_ERROR_MESSAGES } from "../../constants/roomErrors";
+import { ROOM_ERRORS, getRoomErrorMessage } from "../../constants/roomErrors";
 import { setSession } from "../../lib/session";
 import * as roomService from "../../services/roomService";
 
@@ -32,9 +32,7 @@ export function useJoinRoom() {
           return;
         }
 
-        const message =
-          ROOM_ERROR_MESSAGES[error.code] || error.message || "방 조회 실패";
-        alert(message);
+        alert(getRoomErrorMessage(error, "방 정보를 불러오지 못했어요"));
         nav(ROUTES.HOME);
       } finally {
         if (!cancelled) setLoading(false);
@@ -49,6 +47,7 @@ export function useJoinRoom() {
   }, [roomId, nav]);
 
   const enter = async () => {
+    if (submitting) return;
     setSubmitting(true);
 
     try {
@@ -61,9 +60,7 @@ export function useJoinRoom() {
       setSession(session);
       nav(ROUTES.room(roomId));
     } catch (error) {
-      const message =
-        ROOM_ERROR_MESSAGES[error.code] || error.message || "입장 실패";
-      alert(message);
+      alert(getRoomErrorMessage(error, "입장에 실패했어요. 다시 시도해 주세요"));
     } finally {
       setSubmitting(false);
     }

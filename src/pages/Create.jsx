@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { MAX_DATE_RANGE_DAYS, NICKNAME_MAX_LENGTH } from "../constants/app";
 import { useCreateRoom } from "../features/room/useCreateRoom";
+import { addDays } from "../utils/date";
 
 const DEFAULT_MAX_PEOPLE = 2;
 
@@ -28,9 +30,17 @@ export default function Create() {
     end,
     setEnd,
     setMaxPeople,
+    name,
+    setName,
+    password,
+    setPassword,
     loading,
     submit,
   } = useCreateRoom();
+
+  // reason: 달력에서 고를 수 있는 범위를 최대 기간 안으로 제한
+  const startMin = end ? addDays(end, -(MAX_DATE_RANGE_DAYS - 1)) : undefined;
+  const endMax = start ? addDays(start, MAX_DATE_RANGE_DAYS - 1) : undefined;
 
   const [maxPeopleDraft, setMaxPeopleDraft] = useState(String(DEFAULT_MAX_PEOPLE));
 
@@ -129,6 +139,8 @@ export default function Create() {
             className="input date-input"
             type="date"
             value={start}
+            min={startMin}
+            max={end || undefined}
             onChange={(e) => setStart(e.target.value)}
             onClick={openDatePicker}
             onKeyDown={blockDateKeyboard}
@@ -145,6 +157,8 @@ export default function Create() {
             className="input date-input"
             type="date"
             value={end}
+            min={start || undefined}
+            max={endMax}
             onChange={(e) => setEnd(e.target.value)}
             onClick={openDatePicker}
             onKeyDown={blockDateKeyboard}
@@ -152,6 +166,31 @@ export default function Create() {
           />
         </div>
       </div>
+
+      <div className="mode-hint">
+        날짜는 최대 {MAX_DATE_RANGE_DAYS}일까지 선택할 수 있어요
+      </div>
+
+      <div className="join-section-title">방장 정보</div>
+      <div className="mode-hint">방에 다시 들어올 때 쓸 닉네임과 비밀번호예요</div>
+
+      <input
+        className="input"
+        placeholder="닉네임"
+        maxLength={NICKNAME_MAX_LENGTH}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        disabled={loading}
+      />
+
+      <input
+        className="input"
+        type="password"
+        placeholder="비밀번호"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        disabled={loading}
+      />
 
       <button type="button" className="button" onClick={handleSubmit} disabled={loading}>
         생성
