@@ -9,10 +9,12 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "migrate:legacy": "node --env-file=.env.local scripts/migrate-legacy-rooms.mjs"
   },
   "dependencies": {
     "firebase": "^12.12.1",
+    "firebase-admin": "^13.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.14.2"

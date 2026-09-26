@@ -1,48 +1,58 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
 import { getRoomErrorMessage } from "../../constants/roomErrors";
-import { clearSession, getSession } from "../../lib/session";
+import { ensureUser } from "../../lib/auth";
 import * as roomService from "../../services/roomService";
 
 export function useRoom() {
   const { id: roomId } = useParams();
   const nav = useNavigate();
-  const session = useMemo(() => getSession(roomId), [roomId]);
 
+  const [uid, setUid] = useState(null);
   const [room, setRoom] = useState(null);
   const [pendingSelected, setPendingSelected] = useState(null);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const votes = room?.votes || {};
-  const myVote = session && Object.prototype.hasOwnProperty.call(votes, session.name)
-    ? votes[session.name]
-    : null;
-  const serverSelected = myVote?.dates || [];
+  // reason: 내가 누른 나가기·방 삭제 때문에 생긴 변화는 "강퇴됨/없는 방" 안내를 띄우지 않기 위함
+  const leavingRef = useRef(false);
+  const wasMemberRef = useRef(false);
+
+  // 이 브라우저(uid)가 방에서 쓰는 닉네임 — 서버가 입장·생성 때 연결해 둠
+  const myName = room && uid ? roomService.getMemberName(room, uid) : null;
+  const session = myName ? { id: roomId, name: myName } : null;
+
+  const votes = useMemo(() => room?.votes || {}, [room]);
+  const serverSelected = myName ? votes[myName]?.dates || [] : [];
   const selected = pendingSelected ?? serverSelected;
-  const isHost = !!session && session.name === room?.hostId;
+  const isHost = !!myName && myName === room?.hostId;
   const participants = Object.keys(votes);
 
-  const voteSummary = useMemo(
-    () => roomService.computeVoteSummary(room?.votes || {}),
-    [room]
-  );
+  const voteSummary = useMemo(() => roomService.computeVoteSummary(votes), [votes]);
 
   useEffect(() => {
-    try {
-      roomService.assertRoomMember(session, roomId);
-    } catch {
-      alert("로그인 필요");
-      nav(ROUTES.join(roomId));
-    }
-  }, [roomId, nav, session]);
+    let cancelled = false;
+
+    ensureUser()
+      .then((user) => {
+        if (!cancelled) setUid(user.uid);
+      })
+      .catch(() => {
+        alert("접속에 실패했어요. 새로고침해 주세요");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const unsub = roomService.subscribeRoom(
       roomId,
       (data) => setRoom(data),
       () => {
+        if (leavingRef.current) return;
         // reason: 삭제·없는 방은 NotFound 전용 화면으로 이동
         nav(ROUTES.NOT_FOUND);
       },
@@ -54,6 +64,21 @@ export function useRoom() {
     return () => unsub();
   }, [roomId, nav]);
 
+  // 참가자가 아니면 입장 화면으로. 보던 중에 빠졌다면 강퇴된 것
+  useEffect(() => {
+    if (!room || !uid || leavingRef.current) return;
+
+    if (myName) {
+      wasMemberRef.current = true;
+      return;
+    }
+
+    if (wasMemberRef.current) {
+      alert("방에서 내보내졌어요");
+    }
+    nav(ROUTES.join(roomId), { replace: true });
+  }, [room, uid, myName, roomId, nav]);
+
   const toggleDate = (date) => {
     const current = pendingSelected ?? serverSelected;
     setPendingSelected(
@@ -64,17 +89,13 @@ export function useRoom() {
   };
 
   const submitVote = async () => {
-    if (saving) return;
+    if (saving || !myName) return;
 
     const dates = pendingSelected ?? serverSelected;
     setSaving(true);
 
     try {
-      await roomService.saveVote({
-        roomId,
-        nickname: session.name,
-        dates,
-      });
+      await roomService.saveVote({ roomId, nickname: myName, dates });
       // reason: 실시간 구독(onSnapshot)이 저장 결과를 바로 반영하므로 직접 수정할 필요 없음
       setPendingSelected(null);
       alert("저장 완료");
@@ -94,12 +115,7 @@ export function useRoom() {
     setBusy(true);
 
     try {
-      await roomService.kickParticipant({
-        roomId,
-        hostNickname: session.name,
-        target,
-        room,
-      });
+      await roomService.kickParticipant({ roomId, target });
     } catch (error) {
       alert(getRoomErrorMessage(error, "강퇴에 실패했어요. 다시 시도해 주세요"));
     } finally {
@@ -118,27 +134,26 @@ export function useRoom() {
     if (!ok) return;
 
     setBusy(true);
+    leavingRef.current = true;
 
+    let deleted;
     try {
-      await roomService.leaveRoom({
-        roomId,
-        nickname: session.name,
-        isHost,
-      });
+      ({ deleted } = await roomService.leaveRoom({ roomId }));
     } catch (error) {
+      leavingRef.current = false;
+      setBusy(false);
       alert(
         getRoomErrorMessage(
           error,
-          isHost ? "방 삭제에 실패했어요. 다시 시도해 주세요" : "나가기에 실패했어요. 다시 시도해 주세요"
+          isHost
+            ? "방 삭제에 실패했어요. 다시 시도해 주세요"
+            : "나가기에 실패했어요. 다시 시도해 주세요"
         )
       );
-      setBusy(false);
       return;
     }
 
-    clearSession(roomId);
-
-    if (isHost) {
+    if (deleted) {
       alert("방 삭제 완료");
       nav(ROUTES.HOME);
       return;
@@ -167,7 +182,7 @@ export function useRoom() {
 
   const isDateSelectedByOthers = (date) =>
     Object.entries(votes).some(
-      ([name, user]) => name !== session?.name && user?.dates?.includes(date)
+      ([name, user]) => name !== myName && user?.dates?.includes(date)
     );
 
   return {

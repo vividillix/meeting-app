@@ -4,22 +4,25 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ROUTES } from "../constants/routes";
 import { ROOM_ERROR_MESSAGES, ROOM_ERRORS } from "../constants/roomErrors";
+import { callApi } from "../lib/api";
+import { ensureUser } from "../lib/auth";
 import * as roomRepository from "../repositories/roomRepository";
 import Join from "./Join";
 import NotFound from "./NotFound";
 
+vi.mock("../lib/firebase", () => ({ db: {}, auth: {} }));
 vi.mock("../repositories/roomRepository");
-vi.mock("../lib/session", () => ({
-  setSession: vi.fn(),
-}));
+vi.mock("../lib/auth", () => ({ ensureUser: vi.fn(), getIdToken: vi.fn() }));
+vi.mock("../lib/api", () => ({ callApi: vi.fn() }));
 
 const mockRoom = {
   title: "테스트 모임",
   maxPeople: 5,
   hostId: "alice",
   votes: {
-    alice: { password: "1234", dates: [] },
+    alice: { dates: [] },
   },
+  memberUids: { "uid-alice": "alice" },
 };
 
 function renderJoin(roomId = "room-1") {
@@ -27,6 +30,7 @@ function renderJoin(roomId = "room-1") {
     <MemoryRouter initialEntries={[`/join/${roomId}`]}>
       <Routes>
         <Route path="/join/:id" element={<Join />} />
+        <Route path="/room/:id" element={<div>ROOM PAGE</div>} />
         <Route path={ROUTES.NOT_FOUND} element={<NotFound />} />
       </Routes>
     </MemoryRouter>
@@ -43,6 +47,8 @@ describe("Join", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(window, "alert").mockImplementation(() => {});
+    ensureUser.mockResolvedValue({ uid: "uid-visitor" });
+    callApi.mockResolvedValue({ name: "bob" });
     roomRepository.fetchRoom.mockResolvedValue({ exists: true, data: mockRoom });
   });
 
@@ -67,12 +73,11 @@ describe("Join", () => {
     });
 
     expect(window.alert).toHaveBeenCalledTimes(1);
+    expect(callApi).not.toHaveBeenCalled();
   });
 
   it("존재하지 않는 방이면 NotFound 화면으로 이동한다", async () => {
-    const notFoundError = new Error(ROOM_ERROR_MESSAGES.ROOM_NOT_FOUND);
-    notFoundError.code = ROOM_ERRORS.ROOM_NOT_FOUND;
-    roomRepository.fetchRoom.mockRejectedValue(notFoundError);
+    roomRepository.fetchRoom.mockResolvedValue({ exists: false, data: null });
 
     renderJoin("missing-room");
 
@@ -103,5 +108,56 @@ describe("Join", () => {
     });
 
     expect(window.alert).toHaveBeenCalledTimes(1);
+    expect(callApi).not.toHaveBeenCalled();
+  });
+
+  it("비밀번호가 틀리면 서버가 보낸 안내를 표시한다", async () => {
+    const user = userEvent.setup();
+    const wrong = new Error(ROOM_ERROR_MESSAGES.WRONG_PASSWORD);
+    wrong.code = ROOM_ERRORS.WRONG_PASSWORD;
+    callApi.mockRejectedValue(wrong);
+
+    renderJoin();
+    await waitForJoinForm();
+
+    await user.click(screen.getByRole("button", { name: "기존" }));
+    await user.type(screen.getByPlaceholderText("닉네임"), "alice");
+    await user.type(screen.getByPlaceholderText("비밀번호"), "0000");
+    await user.click(screen.getByRole("button", { name: "입장" }));
+
+    await waitFor(() => {
+      expect(window.alert).toHaveBeenCalledWith(ROOM_ERROR_MESSAGES.WRONG_PASSWORD);
+    });
+    expect(callApi).toHaveBeenCalledWith("rooms/join", {
+      roomId: "room-1",
+      mode: "existing",
+      name: "alice",
+      password: "0000",
+    });
+  });
+
+  it("신규 입장에 성공하면 방 화면으로 이동한다", async () => {
+    const user = userEvent.setup();
+
+    renderJoin();
+    await waitForJoinForm();
+
+    await user.type(screen.getByPlaceholderText("닉네임"), "bob");
+    await user.type(screen.getByPlaceholderText("비밀번호"), "pw");
+    await user.click(screen.getByRole("button", { name: "입장" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("ROOM PAGE")).toBeInTheDocument();
+    });
+  });
+
+  it("이 브라우저가 이미 참가 중이면 바로 방 화면으로 이동한다", async () => {
+    ensureUser.mockResolvedValue({ uid: "uid-alice" });
+
+    renderJoin();
+
+    await waitFor(() => {
+      expect(screen.getByText("ROOM PAGE")).toBeInTheDocument();
+    });
   });
 });

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
 import { ROOM_ERRORS, getRoomErrorMessage } from "../../constants/roomErrors";
-import { setSession } from "../../lib/session";
+import { ensureUser } from "../../lib/auth";
 import * as roomService from "../../services/roomService";
 
 export function useJoinRoom() {
@@ -23,9 +23,22 @@ export function useJoinRoom() {
       setLoading(true);
 
       try {
-        const data = await roomService.getRoomForJoin(roomId);
-        if (!cancelled) setRoom(data);
+        const [data, user] = await Promise.all([
+          roomService.getRoomForJoin(roomId),
+          ensureUser(),
+        ]);
+        if (cancelled) return;
+
+        // reason: 이 브라우저가 이미 참가 중이면 입장 화면을 건너뜀
+        if (roomService.getMemberName(data, user.uid)) {
+          nav(ROUTES.room(roomId), { replace: true });
+          return;
+        }
+
+        setRoom(data);
       } catch (error) {
+        if (cancelled) return;
+
         // reason: 존재하지 않는 방은 NotFound 전용 화면으로 이동
         if (error.code === ROOM_ERRORS.ROOM_NOT_FOUND) {
           nav(ROUTES.NOT_FOUND);
@@ -51,13 +64,13 @@ export function useJoinRoom() {
     setSubmitting(true);
 
     try {
-      const session = await roomService.joinRoom({
+      await roomService.joinRoom({
         roomId,
         mode,
         name,
         password,
+        room,
       });
-      setSession(session);
       nav(ROUTES.room(roomId));
     } catch (error) {
       alert(getRoomErrorMessage(error, "입장에 실패했어요. 다시 시도해 주세요"));

@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { MAX_DATE_RANGE_DAYS, NICKNAME_MAX_LENGTH } from "../constants/app";
+import {
+  MAX_DATE_RANGE_DAYS,
+  MAX_PEOPLE,
+  NICKNAME_MAX_LENGTH,
+  TITLE_MAX_LENGTH,
+} from "../constants/app";
 import { useCreateRoom } from "../features/room/useCreateRoom";
 import { addDays } from "../utils/date";
 
@@ -50,7 +55,7 @@ export default function Create() {
     const parsed = parseInt(maxPeopleDraft, 10);
     if (Number.isNaN(parsed) || parsed < 1) return DEFAULT_MAX_PEOPLE;
 
-    return parsed;
+    return Math.min(parsed, MAX_PEOPLE);
   };
 
   const syncMaxPeople = () => {
@@ -67,7 +72,7 @@ export default function Create() {
   };
 
   const increaseMaxPeople = () => {
-    const next = resolveMaxPeople() + 1;
+    const next = Math.min(MAX_PEOPLE, resolveMaxPeople() + 1);
     setMaxPeople(next);
     setMaxPeopleDraft(String(next));
   };
@@ -91,6 +96,7 @@ export default function Create() {
       <input
         className="input"
         placeholder="제목"
+        maxLength={TITLE_MAX_LENGTH}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
@@ -122,7 +128,7 @@ export default function Create() {
             className="stepper-btn"
             aria-label="최대 인원 증가"
             onClick={increaseMaxPeople}
-            disabled={loading}
+            disabled={loading || resolveMaxPeople() >= MAX_PEOPLE}
           >
             +
           </button>

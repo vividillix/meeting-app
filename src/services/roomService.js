@@ -1,103 +1,40 @@
-import { APP_ORIGIN, MAX_DATE_RANGE_DAYS, NICKNAME_MAX_LENGTH } from "../constants/app";
-import { ROOM_ERRORS, ROOM_ERROR_MESSAGES } from "../constants/roomErrors";
+import { APP_ORIGIN } from "../constants/app";
+import { ROOM_ERRORS, throwRoomError } from "../constants/roomErrors";
+import { callApi } from "../lib/api";
 import * as roomRepository from "../repositories/roomRepository";
-import { countDays, generateDates, isValidDateStr } from "../utils/date";
+import {
+  assertCanJoinAsNew,
+  getMemberName,
+  hasMember,
+  isValidRoomId,
+  validateCredentials,
+  validateRoomInput,
+} from "../shared/roomRules";
 
-const CREATE_ROOM_MAX_ATTEMPTS = 3;
+export { getMemberName };
 
-function throwRoomError(code, message = ROOM_ERROR_MESSAGES[code]) {
-  const error = new Error(message);
-  error.code = code;
-  throw error;
-}
-
-export function validateCredentials(name, password) {
-  const cleanName = (name ?? "").trim();
-  const cleanPw = (password ?? "").trim();
-
-  if (!cleanName || !cleanPw) {
-    throwRoomError(ROOM_ERRORS.VALIDATION, "닉네임과 비밀번호를 입력해 주세요");
-  }
-
-  if (cleanName.length > NICKNAME_MAX_LENGTH) {
-    throwRoomError(
-      ROOM_ERRORS.VALIDATION,
-      `닉네임은 ${NICKNAME_MAX_LENGTH}자 이하로 입력해 주세요`
-    );
-  }
-
-  // reason: Firestore는 "__이름__" 형태의 필드명을 예약어로 막아둠
-  if (/^__.*__$/.test(cleanName)) {
-    throwRoomError(ROOM_ERRORS.VALIDATION, "사용할 수 없는 닉네임이에요");
-  }
-
-  return { cleanName, cleanPw };
-}
-
-function validateRoomInput({ title, start, end, maxPeople }) {
-  const cleanTitle = (title ?? "").trim();
-
-  if (!cleanTitle) {
-    throwRoomError(ROOM_ERRORS.VALIDATION, "제목을 입력해 주세요");
-  }
-
-  if (!Number.isInteger(maxPeople) || maxPeople < 1) {
-    throwRoomError(ROOM_ERRORS.VALIDATION, "최대 인원은 1명 이상이어야 해요");
-  }
-
-  if (!isValidDateStr(start) || !isValidDateStr(end)) {
-    throwRoomError(ROOM_ERRORS.VALIDATION, "시작일과 종료일을 선택해 주세요");
-  }
-
-  const days = countDays(start, end);
-
-  if (days < 1) {
-    throwRoomError(ROOM_ERRORS.VALIDATION, "종료일이 시작일보다 빨라요");
-  }
-
-  if (days > MAX_DATE_RANGE_DAYS) {
-    throwRoomError(
-      ROOM_ERRORS.VALIDATION,
-      `날짜 범위는 최대 ${MAX_DATE_RANGE_DAYS}일까지 선택할 수 있어요`
-    );
-  }
-
-  return cleanTitle;
-}
-
-/**
- * 방을 만들고 만든 사람을 방장으로 바로 등록함.
- * reason: 예전에는 "처음 입장한 사람"이 방장이 돼서, 링크를 먼저 받은 다른 사람이
- * 방장이 될 수 있었음
- */
+// 입력값은 여기서 먼저 검사해 빠르게 안내하고, 서버가 같은 규칙으로 다시 확인함
 export async function createRoom({ title, start, end, maxPeople, name, password }) {
   const cleanTitle = validateRoomInput({ title, start, end, maxPeople });
   const { cleanName, cleanPw } = validateCredentials(name, password);
 
-  const data = {
+  const { roomId } = await callApi("rooms/create", {
     title: cleanTitle,
-    dates: generateDates(start, end),
+    start,
+    end,
     maxPeople,
-    hostId: cleanName,
-    votes: {
-      [cleanName]: { password: cleanPw, dates: [] },
-    },
-  };
+    name: cleanName,
+    password: cleanPw,
+  });
 
-  // reason: 같은 밀리초에 방이 두 개 만들어지면 기존 방을 덮어쓰던 문제 방지
-  for (let attempt = 0; attempt < CREATE_ROOM_MAX_ATTEMPTS; attempt += 1) {
-    const roomId = (Date.now() + attempt).toString();
-    const created = await roomRepository.createRoomIfAbsent(roomId, data);
-
-    if (created) {
-      return { roomId, session: { id: roomId, name: cleanName } };
-    }
-  }
-
-  throwRoomError(ROOM_ERRORS.ROOM_ID_CONFLICT);
+  return { roomId };
 }
 
 export async function getRoomForJoin(roomId) {
+  if (!isValidRoomId(roomId)) {
+    throwRoomError(ROOM_ERRORS.ROOM_NOT_FOUND);
+  }
+
   const { exists, data } = await roomRepository.fetchRoom(roomId);
 
   if (!exists) {
@@ -107,72 +44,31 @@ export async function getRoomForJoin(roomId) {
   return data;
 }
 
-function assertCanJoinAsNew(room, cleanName) {
-  const votes = room.votes || {};
-
-  if (Object.prototype.hasOwnProperty.call(votes, cleanName)) {
-    throwRoomError(ROOM_ERRORS.DUPLICATE_NAME);
-  }
-
-  if (Object.keys(votes).length >= room.maxPeople) {
-    throwRoomError(ROOM_ERRORS.ROOM_FULL);
-  }
-}
-
-export async function joinRoom({ roomId, mode, name, password }) {
+/**
+ * room(이미 불러온 방 정보)이 있으면 흔한 실패는 서버에 묻기 전에 안내.
+ * 비밀번호 확인과 최종 판단은 서버가 함.
+ */
+export async function joinRoom({ roomId, mode, name, password, room }) {
   const { cleanName, cleanPw } = validateCredentials(name, password);
-  const { exists, data: room } = await roomRepository.fetchRoom(roomId);
 
-  if (!exists) {
-    throwRoomError(ROOM_ERRORS.ROOM_NOT_FOUND);
-  }
-
-  if (mode === "existing") {
-    const votes = room.votes || {};
-    const userData = Object.prototype.hasOwnProperty.call(votes, cleanName)
-      ? votes[cleanName]
-      : null;
-
-    if (!userData) {
+  if (room) {
+    if (mode === "existing" && !hasMember(room, cleanName)) {
       throwRoomError(ROOM_ERRORS.USER_NOT_FOUND);
     }
 
-    if (userData.password !== cleanPw) {
-      throwRoomError(ROOM_ERRORS.WRONG_PASSWORD);
+    if (mode !== "existing") {
+      assertCanJoinAsNew(room, cleanName);
     }
-
-    return { id: roomId, name: cleanName };
   }
 
-  // reason: 트랜잭션 전에 한 번 검사해서 흔한 실패는 빠르게 안내
-  assertCanJoinAsNew(room, cleanName);
-
-  // reason: 읽기와 쓰기를 트랜잭션으로 묶어서, 동시에 입장해도
-  // 닉네임 중복·인원 초과·방장 덮어쓰기가 생기지 않게 함
-  await roomRepository.runRoomTransaction(roomId, ({ exists: stillExists, data }) => {
-    if (!stillExists) {
-      throwRoomError(ROOM_ERRORS.ROOM_NOT_FOUND);
-    }
-
-    assertCanJoinAsNew(data, cleanName);
-
-    const updates = [[["votes", cleanName], { password: cleanPw, dates: [] }]];
-
-    // 방장 없이 만들어진 예전 방은 첫 입장자가 방장이 됨
-    if (!data.hostId) {
-      updates.push([["hostId"], cleanName]);
-    }
-
-    return { updates };
+  const result = await callApi("rooms/join", {
+    roomId,
+    mode: mode === "existing" ? "existing" : "new",
+    name: cleanName,
+    password: cleanPw,
   });
 
-  return { id: roomId, name: cleanName };
-}
-
-export function assertRoomMember(session, roomId) {
-  if (!session || session.id !== roomId) {
-    throwRoomError(ROOM_ERRORS.NOT_MEMBER);
-  }
+  return { id: roomId, name: result.name ?? cleanName };
 }
 
 export function subscribeRoom(roomId, onData, onMissing, onError) {
@@ -183,22 +79,14 @@ export async function saveVote({ roomId, nickname, dates }) {
   await roomRepository.setVoteDates(roomId, nickname, dates);
 }
 
-export async function kickParticipant({ roomId, hostNickname, target, room }) {
-  if (hostNickname !== room.hostId) {
-    throwRoomError(ROOM_ERRORS.NOT_HOST);
-  }
-
-  await roomRepository.removeVoteField(roomId, target);
+export async function kickParticipant({ roomId, target }) {
+  await callApi("rooms/kick", { roomId, target });
 }
 
-export async function leaveRoom({ roomId, nickname, isHost }) {
-  if (isHost) {
-    await roomRepository.deleteRoom(roomId);
-    return { deleted: true };
-  }
-
-  await roomRepository.removeVoteField(roomId, nickname);
-  return { deleted: false };
+// 방장이면 방이 삭제됨 → { deleted: true }
+export async function leaveRoom({ roomId }) {
+  const { deleted } = await callApi("rooms/leave", { roomId });
+  return { deleted: !!deleted };
 }
 
 export function computeVoteSummary(votes = {}) {

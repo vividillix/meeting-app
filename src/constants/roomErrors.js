@@ -8,6 +8,8 @@ export const ROOM_ERRORS = {
   NOT_HOST: "NOT_HOST",
   NOT_MEMBER: "NOT_MEMBER",
   ROOM_ID_CONFLICT: "ROOM_ID_CONFLICT",
+  TOO_MANY_ATTEMPTS: "TOO_MANY_ATTEMPTS",
+  UNAUTHENTICATED: "UNAUTHENTICATED",
 };
 
 export const ROOM_ERROR_MESSAGES = {
@@ -20,7 +22,16 @@ export const ROOM_ERROR_MESSAGES = {
   [ROOM_ERRORS.NOT_HOST]: "방장만 가능합니다",
   [ROOM_ERRORS.NOT_MEMBER]: "로그인 필요",
   [ROOM_ERRORS.ROOM_ID_CONFLICT]: "잠시 후 다시 시도해 주세요",
+  [ROOM_ERRORS.TOO_MANY_ATTEMPTS]:
+    "비밀번호를 여러 번 틀렸어요. 잠시 후 다시 시도해 주세요",
+  [ROOM_ERRORS.UNAUTHENTICATED]: "접속 정보가 만료됐어요. 새로고침해 주세요",
 };
+
+export function throwRoomError(code, message = ROOM_ERROR_MESSAGES[code]) {
+  const error = new Error(message);
+  error.code = code;
+  throw error;
+}
 
 // reason: 서비스가 던진 에러는 구체적인 메시지를 보여주고,
 // Firestore·네트워크 에러(영문 메시지)는 화면별 기본 문구로 대체

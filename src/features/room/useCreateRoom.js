@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
 import { getRoomErrorMessage } from "../../constants/roomErrors";
-import { setSession } from "../../lib/session";
 import * as roomService from "../../services/roomService";
 
 export function useCreateRoom() {
@@ -20,7 +19,7 @@ export function useCreateRoom() {
     setLoading(true);
 
     try {
-      const { roomId, session } = await roomService.createRoom({
+      const { roomId } = await roomService.createRoom({
         title,
         start,
         end,
@@ -28,8 +27,7 @@ export function useCreateRoom() {
         name,
         password,
       });
-      // reason: 만든 사람은 방장으로 이미 등록됐으니 입장 화면을 건너뛰고 바로 방으로
-      setSession(session);
+      // reason: 서버가 만든 사람을 방장으로 등록하고 이 브라우저와 연결해 둠 → 바로 방으로
       nav(ROUTES.room(roomId));
     } catch (error) {
       alert(getRoomErrorMessage(error, "방 생성에 실패했어요. 다시 시도해 주세요"));
