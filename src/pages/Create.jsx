@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   MAX_DATE_RANGE_DAYS,
   MAX_PEOPLE,
   NICKNAME_MAX_LENGTH,
   TITLE_MAX_LENGTH,
 } from "../constants/app";
+import { ROUTES } from "../constants/routes";
 import { useCreateRoom } from "../features/room/useCreateRoom";
 import { addDays } from "../utils/date";
 
@@ -27,6 +29,7 @@ function blockDateKeyboard(event) {
 }
 
 export default function Create() {
+  const nav = useNavigate();
   const {
     title,
     setTitle,
@@ -90,116 +93,143 @@ export default function Create() {
   };
 
   return (
-    <div className="container">
-      <div className="title">방 생성</div>
+    <div className="page">
+      <button type="button" className="back-btn" onClick={() => nav(ROUTES.HOME)}>
+        ← 홈
+      </button>
 
-      <input
-        className="input"
-        placeholder="제목"
-        maxLength={TITLE_MAX_LENGTH}
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
+      <header className="topbar">
+        <div>
+          <h1 className="topbar__title">새 약속 만들기</h1>
+          <p className="topbar__meta">날짜 범위를 정하고 링크를 공유하면 끝이에요</p>
+        </div>
+      </header>
 
-      <div className="number-stepper">
-        <span className="number-stepper-label">최대 인원</span>
-        <div className="number-stepper-controls">
-          <button
-            type="button"
-            className="stepper-btn"
-            aria-label="최대 인원 감소"
-            onClick={decreaseMaxPeople}
-            disabled={loading || resolveMaxPeople() <= 1}
-          >
-            −
-          </button>
+      <section className="card form">
+        <div className="field">
+          <label className="field__label" htmlFor="create-title">
+            약속 이름
+          </label>
           <input
-            type="text"
-            className="stepper-value"
-            inputMode="numeric"
-            aria-label="최대 인원"
-            value={maxPeopleDraft}
-            onChange={handleMaxPeopleChange}
-            onBlur={syncMaxPeople}
+            id="create-title"
+            className="input"
+            placeholder="예: 10월 동기 모임"
+            maxLength={TITLE_MAX_LENGTH}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             disabled={loading}
           />
-          <button
-            type="button"
-            className="stepper-btn"
-            aria-label="최대 인원 증가"
-            onClick={increaseMaxPeople}
-            disabled={loading || resolveMaxPeople() >= MAX_PEOPLE}
-          >
-            +
-          </button>
-        </div>
-      </div>
-
-      <div className="date-row">
-        <div className="date-field">
-          <label className="date-label" htmlFor="create-start">
-            시작일
-          </label>
-          <input
-            id="create-start"
-            className="input date-input"
-            type="date"
-            value={start}
-            min={startMin}
-            max={end || undefined}
-            onChange={(e) => setStart(e.target.value)}
-            onClick={openDatePicker}
-            onKeyDown={blockDateKeyboard}
-            onPaste={(e) => e.preventDefault()}
-          />
         </div>
 
-        <div className="date-field">
-          <label className="date-label" htmlFor="create-end">
-            종료일
-          </label>
-          <input
-            id="create-end"
-            className="input date-input"
-            type="date"
-            value={end}
-            min={start || undefined}
-            max={endMax}
-            onChange={(e) => setEnd(e.target.value)}
-            onClick={openDatePicker}
-            onKeyDown={blockDateKeyboard}
-            onPaste={(e) => e.preventDefault()}
-          />
+        <div className="date-row">
+          <div className="field">
+            <label className="field__label" htmlFor="create-start">
+              시작일
+            </label>
+            <input
+              id="create-start"
+              className="input date-input"
+              type="date"
+              value={start}
+              min={startMin}
+              max={end || undefined}
+              onChange={(e) => setStart(e.target.value)}
+              onClick={openDatePicker}
+              onKeyDown={blockDateKeyboard}
+              onPaste={(e) => e.preventDefault()}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="field">
+            <label className="field__label" htmlFor="create-end">
+              종료일
+            </label>
+            <input
+              id="create-end"
+              className="input date-input"
+              type="date"
+              value={end}
+              min={start || undefined}
+              max={endMax}
+              onChange={(e) => setEnd(e.target.value)}
+              onClick={openDatePicker}
+              onKeyDown={blockDateKeyboard}
+              onPaste={(e) => e.preventDefault()}
+              disabled={loading}
+            />
+          </div>
         </div>
-      </div>
+        <p className="field__hint" style={{ marginTop: "-0.5rem" }}>
+          날짜는 최대 {MAX_DATE_RANGE_DAYS}일까지 선택할 수 있어요
+        </p>
 
-      <div className="mode-hint">
-        날짜는 최대 {MAX_DATE_RANGE_DAYS}일까지 선택할 수 있어요
-      </div>
+        <div className="stepper">
+          <span className="field__label">최대 인원</span>
+          <div className="stepper__controls">
+            <button
+              type="button"
+              className="stepper__btn"
+              aria-label="최대 인원 감소"
+              onClick={decreaseMaxPeople}
+              disabled={loading || resolveMaxPeople() <= 1}
+            >
+              −
+            </button>
+            <input
+              type="text"
+              className="stepper__value"
+              inputMode="numeric"
+              aria-label="최대 인원"
+              value={maxPeopleDraft}
+              onChange={handleMaxPeopleChange}
+              onBlur={syncMaxPeople}
+              disabled={loading}
+            />
+            <button
+              type="button"
+              className="stepper__btn"
+              aria-label="최대 인원 증가"
+              onClick={increaseMaxPeople}
+              disabled={loading || resolveMaxPeople() >= MAX_PEOPLE}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </section>
 
-      <div className="join-section-title">방장 정보</div>
-      <div className="mode-hint">방에 다시 들어올 때 쓸 닉네임과 비밀번호예요</div>
+      <section className="card form">
+        <div>
+          <h2 className="card__title">방장 정보</h2>
+          <p className="field__hint" style={{ marginTop: "0.25rem" }}>
+            방에 다시 들어올 때 쓸 닉네임과 비밀번호예요
+          </p>
+        </div>
 
-      <input
-        className="input"
-        placeholder="닉네임"
-        maxLength={NICKNAME_MAX_LENGTH}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        disabled={loading}
-      />
+        <input
+          className="input"
+          placeholder="닉네임"
+          aria-label="닉네임"
+          maxLength={NICKNAME_MAX_LENGTH}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={loading}
+        />
 
-      <input
-        className="input"
-        type="password"
-        placeholder="비밀번호"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        disabled={loading}
-      />
+        <input
+          className="input"
+          type="password"
+          placeholder="비밀번호"
+          aria-label="비밀번호"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={loading}
+        />
+      </section>
 
-      <button type="button" className="button" onClick={handleSubmit} disabled={loading}>
-        생성
+      <button type="button" className="btn btn--lg" onClick={handleSubmit} disabled={loading}>
+        {loading ? "만드는 중..." : "약속 만들기"}
       </button>
     </div>
   );

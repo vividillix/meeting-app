@@ -35,3 +35,66 @@ export const generateDates = (start, end) => {
 
   return result;
 };
+
+export const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+// "2026-10-17" → { year, month, day, weekday(0=일) }
+export function parseDateParts(dateStr) {
+  const date = new Date(toUtcMs(dateStr));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+    weekday: date.getUTCDay(),
+  };
+}
+
+// "2026-10-17" → "10월 17일"
+export function formatMonthDay(dateStr) {
+  const { month, day } = parseDateParts(dateStr);
+  return `${month}월 ${day}일`;
+}
+
+// "2026-10-17" → "토요일"
+export function formatWeekday(dateStr) {
+  return `${WEEKDAYS[parseDateParts(dateStr).weekday]}요일`;
+}
+
+function monthKey(dateStr) {
+  return dateStr.slice(0, 7);
+}
+
+/**
+ * 투표 기간을 달력 형태로 나눔.
+ * 반환: [{ key: "2026-10", label: "2026년 10월", weeks: [[날짜문자열|null x7], ...] }]
+ * 기간이 걸친 주만 보여주고, 다른 달의 날짜 칸은 null(빈칸)로 채움.
+ */
+export function buildCalendarMonths(dates) {
+  if (!dates?.length) return [];
+
+  const inRange = new Set(dates);
+  const first = dates[0];
+  const last = dates[dates.length - 1];
+  const gridStart = addDays(first, -parseDateParts(first).weekday);
+  const gridEnd = addDays(last, 6 - parseDateParts(last).weekday);
+  const allDays = generateDates(gridStart, gridEnd);
+  const months = new Map();
+
+  for (let i = 0; i < allDays.length; i += 7) {
+    const week = allDays.slice(i, i + 7);
+
+    // reason: 한 주가 두 달에 걸치면 달마다 따로 한 줄씩 만들어 달 경계를 분명히 함
+    [...new Set(week.map(monthKey))].forEach((key) => {
+      const row = week.map((d) => (monthKey(d) === key ? d : null));
+      if (!row.some((d) => d && inRange.has(d))) return;
+
+      if (!months.has(key)) {
+        const { year, month } = parseDateParts(`${key}-01`);
+        months.set(key, { key, label: `${year}년 ${month}월`, weeks: [] });
+      }
+      months.get(key).weeks.push(row);
+    });
+  }
+
+  return [...months.values()];
+}

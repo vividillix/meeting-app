@@ -26,6 +26,11 @@ export function useRoom() {
   const votes = useMemo(() => room?.votes || {}, [room]);
   const serverSelected = myName ? votes[myName]?.dates || [] : [];
   const selected = pendingSelected ?? serverSelected;
+  // 저장하지 않은 변경이 있는지 (순서와 무관하게 비교)
+  const dirty =
+    pendingSelected !== null &&
+    (pendingSelected.length !== serverSelected.length ||
+      pendingSelected.some((d) => !serverSelected.includes(d)));
   const isHost = !!myName && myName === room?.hostId;
   const participants = Object.keys(votes);
 
@@ -189,6 +194,7 @@ export function useRoom() {
     room,
     session,
     selected,
+    dirty,
     saving,
     busy,
     isHost,

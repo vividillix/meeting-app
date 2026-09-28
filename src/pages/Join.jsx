@@ -1,5 +1,6 @@
 import { NICKNAME_MAX_LENGTH } from "../constants/app";
 import { useJoinRoom } from "../features/room/useJoinRoom";
+import { formatMonthDay } from "../utils/date";
 
 export default function Join() {
   const {
@@ -17,55 +18,84 @@ export default function Join() {
 
   if (loading || !room) return <div className="loading">loading...</div>;
 
+  const dates = room.dates || [];
+  const memberCount = Object.keys(room.votes || {}).length;
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") enter();
+  };
+
   return (
-    <div className="container">
-      <div className="title">{room.title}</div>
+    <div className="page page--center">
+      <header className="topbar">
+        <div>
+          <h1 className="topbar__title">{room.title}</h1>
+          <p className="topbar__meta">
+            {dates.length > 0 &&
+              `${formatMonthDay(dates[0])} – ${formatMonthDay(dates[dates.length - 1])} · `}
+            {memberCount}/{room.maxPeople}명 참여 중
+          </p>
+        </div>
+      </header>
 
-      <div className="join-section-title">입장</div>
+      <section className="card form">
+        <div className="card__head" style={{ marginBottom: 0 }}>
+          <h2 className="card__title">입장</h2>
+        </div>
 
-      <div className="mode-toggle">
-        <button
-          type="button"
-          className={`button ${mode !== "new" ? "button--inactive" : ""}`}
-          onClick={() => setMode("new")}
-        >
-          신규
+        <div className="segmented" role="group" aria-label="입장 방식">
+          <button
+            type="button"
+            aria-pressed={mode === "new"}
+            className={`segmented__item ${mode === "new" ? "segmented__item--active" : ""}`}
+            onClick={() => setMode("new")}
+          >
+            신규
+          </button>
+          <button
+            type="button"
+            aria-pressed={mode === "existing"}
+            className={`segmented__item ${mode === "existing" ? "segmented__item--active" : ""}`}
+            onClick={() => setMode("existing")}
+          >
+            기존
+          </button>
+        </div>
+
+        <p className="hint">
+          {mode === "new" ? "새로 참여하는 멤버입니다" : "이미 참여한 멤버입니다"}
+        </p>
+
+        <input
+          className="input"
+          placeholder="닉네임"
+          aria-label="닉네임"
+          maxLength={NICKNAME_MAX_LENGTH}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+
+        <input
+          className="input"
+          type="password"
+          placeholder="비밀번호"
+          aria-label="비밀번호"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+
+        <p className="field__hint">
+          {mode === "new"
+            ? "다른 기기에서 다시 들어올 때 이 닉네임과 비밀번호를 써요"
+            : "처음 입장할 때 정한 닉네임과 비밀번호를 입력해 주세요"}
+        </p>
+
+        <button type="button" className="btn btn--lg" onClick={enter} disabled={submitting}>
+          입장
         </button>
-
-        <button
-          type="button"
-          className={`button ${mode !== "existing" ? "button--inactive" : ""}`}
-          onClick={() => setMode("existing")}
-        >
-          기존
-        </button>
-      </div>
-
-      <div className="mode-hint">
-        {mode === "new"
-          ? "새로 참여하는 멤버입니다"
-          : "이미 참여한 멤버입니다"}
-      </div>
-
-      <input
-        className="input"
-        placeholder="닉네임"
-        maxLength={NICKNAME_MAX_LENGTH}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-
-      <input
-        className="input"
-        type="password"
-        placeholder="비밀번호"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-
-      <button type="button" className="button" onClick={enter} disabled={submitting}>
-        입장
-      </button>
+      </section>
     </div>
   );
 }
