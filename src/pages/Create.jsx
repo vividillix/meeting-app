@@ -1,3 +1,4 @@
+import SecretInput from "../components/SecretInput";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -217,9 +218,8 @@ export default function Create() {
           disabled={loading}
         />
 
-        <input
+        <SecretInput
           className="input"
-          type="password"
           placeholder="비밀번호"
           aria-label="비밀번호"
           value={password}

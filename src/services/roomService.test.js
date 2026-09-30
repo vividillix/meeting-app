@@ -142,3 +142,17 @@ describe("computeVoteSummary", () => {
     expect(summary.noResult).toBe(false);
   });
 });
+
+describe("buildShareText", () => {
+  it("제목과 링크를 한 문구에 함께 담는다", () => {
+    const text = roomService.buildShareText({ roomId: "abc123xyz9", title: " 10월 모임 " });
+    expect(text).toMatch(/^10월 모임\n/);
+    expect(text).toMatch(/\/join\/abc123xyz9$/);
+  });
+
+  it("제목이 없으면 링크만 담는다", () => {
+    expect(roomService.buildShareText({ roomId: "abc123xyz9", title: "" })).toMatch(
+      /^https?:\/\/\S+\/join\/abc123xyz9$/
+    );
+  });
+});

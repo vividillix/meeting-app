@@ -1,17 +1,32 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useFeedback } from "../../components/feedback/feedbackContext";
 import { ROUTES } from "../../constants/routes";
 import { getRoomErrorMessage } from "../../constants/roomErrors";
 import { ensureUser } from "../../lib/auth";
 import * as roomService from "../../services/roomService";
 
+/**
+ * 휴대폰·태블릿에서만 기기 공유창을 씀.
+ * reason: 맥·PC의 공유 메뉴에는 "복사"가 없어서 링크를 복사할 방법이 없음 → PC는 바로 복사
+ */
+function shouldUseShareSheet() {
+  if (typeof navigator.share !== "function") return false;
+  const coarsePointer =
+    typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+  return coarsePointer || navigator.userAgentData?.mobile === true;
+}
+
 export function useRoom() {
   const { id: roomId } = useParams();
   const nav = useNavigate();
+  const { toast, confirm } = useFeedback();
 
   const [uid, setUid] = useState(null);
   const [room, setRoom] = useState(null);
   const [pendingSelected, setPendingSelected] = useState(null);
+  // null이면 자동: 아직 투표 안 했으면 수정 모드, 했으면 보기 모드
+  const [editingOverride, setEditingOverride] = useState(null);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -31,6 +46,17 @@ export function useRoom() {
     pendingSelected !== null &&
     (pendingSelected.length !== serverSelected.length ||
       pendingSelected.some((d) => !serverSelected.includes(d)));
+
+  // reason: 저장한 뒤에는 날짜를 눌러도 명단만 보이게 하고, "수정하기"를 눌러야 투표가 바뀌게 함
+  const hasVoted = serverSelected.length > 0;
+  const editing = editingOverride ?? !hasVoted;
+
+  const startEditing = () => setEditingOverride(true);
+
+  const cancelEditing = () => {
+    setPendingSelected(null);
+    setEditingOverride(false);
+  };
   const isHost = !!myName && myName === room?.hostId;
   const participants = Object.keys(votes);
 
@@ -44,13 +70,13 @@ export function useRoom() {
         if (!cancelled) setUid(user.uid);
       })
       .catch(() => {
-        alert("접속에 실패했어요. 새로고침해 주세요");
+        toast("접속에 실패했어요. 새로고침해 주세요", { type: "error" });
       });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     const unsub = roomService.subscribeRoom(
@@ -62,12 +88,12 @@ export function useRoom() {
         nav(ROUTES.NOT_FOUND);
       },
       () => {
-        alert("방 정보를 불러오지 못했어요. 새로고침해 주세요");
+        toast("방 정보를 불러오지 못했어요. 새로고침해 주세요", { type: "error" });
       }
     );
 
     return () => unsub();
-  }, [roomId, nav]);
+  }, [roomId, nav, toast]);
 
   // 참가자가 아니면 입장 화면으로. 보던 중에 빠졌다면 강퇴된 것
   useEffect(() => {
@@ -79,12 +105,13 @@ export function useRoom() {
     }
 
     if (wasMemberRef.current) {
-      alert("방에서 내보내졌어요");
+      toast("방에서 내보내졌어요", { type: "error" });
     }
     nav(ROUTES.join(roomId), { replace: true });
-  }, [room, uid, myName, roomId, nav]);
+  }, [room, uid, myName, roomId, nav, toast]);
 
   const toggleDate = (date) => {
+    if (!editing) return;
     const current = pendingSelected ?? serverSelected;
     setPendingSelected(
       current.includes(date)
@@ -103,9 +130,12 @@ export function useRoom() {
       await roomService.saveVote({ roomId, nickname: myName, dates });
       // reason: 실시간 구독(onSnapshot)이 저장 결과를 바로 반영하므로 직접 수정할 필요 없음
       setPendingSelected(null);
-      alert("저장 완료");
+      setEditingOverride(false);
+      toast("투표를 저장했어요");
     } catch (error) {
-      alert(getRoomErrorMessage(error, "투표 저장에 실패했어요. 다시 시도해 주세요"));
+      toast(getRoomErrorMessage(error, "투표 저장에 실패했어요. 다시 시도해 주세요"), {
+        type: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -114,15 +144,23 @@ export function useRoom() {
   const kickUser = async (target) => {
     if (!isHost || busy) return;
 
-    const ok = window.confirm(`${target} 님을 강퇴하시겠습니까?`);
+    const ok = await confirm({
+      title: `${target} 님을 내보낼까요?`,
+      message: "내보내면 이 사람의 투표도 함께 지워져요.",
+      confirmText: "내보내기",
+      danger: true,
+    });
     if (!ok) return;
 
     setBusy(true);
 
     try {
       await roomService.kickParticipant({ roomId, target });
+      toast(`${target} 님을 내보냈어요`);
     } catch (error) {
-      alert(getRoomErrorMessage(error, "강퇴에 실패했어요. 다시 시도해 주세요"));
+      toast(getRoomErrorMessage(error, "내보내기에 실패했어요. 다시 시도해 주세요"), {
+        type: "error",
+      });
     } finally {
       setBusy(false);
     }
@@ -131,10 +169,20 @@ export function useRoom() {
   const leaveRoom = async () => {
     if (busy) return;
 
-    const ok = window.confirm(
+    const ok = await confirm(
       isHost
-        ? "방을 삭제하시겠습니까?\n삭제하면 모든 데이터가 사라집니다."
-        : "방을 나가시겠습니까?"
+        ? {
+            title: "방을 삭제할까요?",
+            message: "삭제하면 모든 참가자의 투표가 사라지고 되돌릴 수 없어요.",
+            confirmText: "삭제",
+            danger: true,
+          }
+        : {
+            title: "방에서 나갈까요?",
+            message: "내 투표도 함께 지워져요.",
+            confirmText: "나가기",
+            danger: true,
+          }
     );
     if (!ok) return;
 
@@ -147,19 +195,20 @@ export function useRoom() {
     } catch (error) {
       leavingRef.current = false;
       setBusy(false);
-      alert(
+      toast(
         getRoomErrorMessage(
           error,
           isHost
             ? "방 삭제에 실패했어요. 다시 시도해 주세요"
             : "나가기에 실패했어요. 다시 시도해 주세요"
-        )
+        ),
+        { type: "error" }
       );
       return;
     }
 
     if (deleted) {
-      alert("방 삭제 완료");
+      toast("방을 삭제했어요");
       nav(ROUTES.HOME);
       return;
     }
@@ -167,18 +216,38 @@ export function useRoom() {
     nav(ROUTES.join(roomId));
   };
 
-  const copyShareLink = async () => {
-    const text = roomService.buildShareText({
-      roomId,
-      title: room?.title,
-    });
+  /**
+   * 휴대폰에서는 기기 공유창(카카오톡·메시지 등)을 띄우고,
+   * 공유창이 없는 환경(PC 등)에서는 링크를 복사함.
+   * reason: 공유창은 https 주소에서만 뜸 — 로컬 개발 서버에서는 복사로 넘어감
+   */
+  const shareLink = async () => {
+    const url = roomService.buildShareLink(roomId);
+    const text = roomService.buildShareText({ roomId, title: room?.title });
+
+    if (shouldUseShareSheet()) {
+      try {
+        // reason: 아이폰 공유창의 "복사"는 text와 url을 따로 주면 text만 복사함
+        // → 제목과 링크를 text 하나에 담아서 복사·카톡 어디로 보내도 링크가 같이 가게 함
+        await navigator.share({ text });
+        return;
+      } catch (error) {
+        // 사용자가 공유창을 닫은 경우는 조용히 끝냄
+        if (error?.name === "AbortError") return;
+      }
+    }
 
     try {
       await navigator.clipboard.writeText(text);
-      alert("복사됨");
+      toast("링크를 복사했어요");
     } catch {
-      // reason: 클립보드 권한이 없거나 http 환경이면 복사가 실패함 — 직접 복사하도록 보여줌
-      window.prompt("아래 링크를 복사해 주세요", text);
+      // reason: 클립보드 권한이 없으면 링크를 보여주고 직접 복사하게 함
+      await confirm({
+        title: "아래 링크를 복사해 주세요",
+        message: url,
+        confirmText: "닫기",
+        alertOnly: true,
+      });
     }
   };
 
@@ -195,6 +264,10 @@ export function useRoom() {
     session,
     selected,
     dirty,
+    hasVoted,
+    editing,
+    startEditing,
+    cancelEditing,
     saving,
     busy,
     isHost,
@@ -204,7 +277,7 @@ export function useRoom() {
     submitVote,
     kickUser,
     leaveRoom,
-    copyShareLink,
+    shareLink,
     getParticipantsForDate,
     isDateSelectedByOthers,
   };

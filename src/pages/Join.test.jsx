@@ -7,6 +7,7 @@ import { ROOM_ERROR_MESSAGES, ROOM_ERRORS } from "../constants/roomErrors";
 import { callApi } from "../lib/api";
 import { ensureUser } from "../lib/auth";
 import * as roomRepository from "../repositories/roomRepository";
+import FeedbackProvider from "../components/feedback/FeedbackProvider";
 import Join from "./Join";
 import NotFound from "./NotFound";
 
@@ -28,14 +29,19 @@ const mockRoom = {
 function renderJoin(roomId = "room-1") {
   return render(
     <MemoryRouter initialEntries={[`/join/${roomId}`]}>
-      <Routes>
-        <Route path="/join/:id" element={<Join />} />
-        <Route path="/room/:id" element={<div>ROOM PAGE</div>} />
-        <Route path={ROUTES.NOT_FOUND} element={<NotFound />} />
-      </Routes>
+      <FeedbackProvider>
+        <Routes>
+          <Route path="/join/:id" element={<Join />} />
+          <Route path="/room/:id" element={<div>ROOM PAGE</div>} />
+          <Route path={ROUTES.NOT_FOUND} element={<NotFound />} />
+        </Routes>
+      </FeedbackProvider>
     </MemoryRouter>
   );
 }
+
+// 화면 위쪽에 뜨는 알림(토스트) 목록
+const toasts = () => Array.from(screen.getByRole("status").children).map((el) => el.textContent);
 
 async function waitForJoinForm() {
   await waitFor(() => {
@@ -46,7 +52,6 @@ async function waitForJoinForm() {
 describe("Join", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(window, "alert").mockImplementation(() => {});
     ensureUser.mockResolvedValue({ uid: "uid-visitor" });
     callApi.mockResolvedValue({ name: "bob" });
     roomRepository.fetchRoom.mockResolvedValue({ exists: true, data: mockRoom });
@@ -67,12 +72,8 @@ describe("Join", () => {
     await user.click(screen.getByRole("button", { name: "입장" }));
 
     await waitFor(() => {
-      expect(window.alert).toHaveBeenCalledWith(
-        ROOM_ERROR_MESSAGES.USER_NOT_FOUND
-      );
+      expect(toasts()).toEqual([ROOM_ERROR_MESSAGES.USER_NOT_FOUND]);
     });
-
-    expect(window.alert).toHaveBeenCalledTimes(1);
     expect(callApi).not.toHaveBeenCalled();
   });
 
@@ -85,7 +86,7 @@ describe("Join", () => {
       expect(screen.getByText("방을 찾을 수 없어요")).toBeInTheDocument();
     });
 
-    expect(window.alert).not.toHaveBeenCalled();
+    expect(toasts()).toEqual([]);
   });
 
   it("신규 멤버 모드에서 이미 존재하는 닉네임으로 입장하면 중복 안내 메시지를 표시한다", async () => {
@@ -102,12 +103,8 @@ describe("Join", () => {
     await user.click(screen.getByRole("button", { name: "입장" }));
 
     await waitFor(() => {
-      expect(window.alert).toHaveBeenCalledWith(
-        ROOM_ERROR_MESSAGES.DUPLICATE_NAME
-      );
+      expect(toasts()).toEqual([ROOM_ERROR_MESSAGES.DUPLICATE_NAME]);
     });
-
-    expect(window.alert).toHaveBeenCalledTimes(1);
     expect(callApi).not.toHaveBeenCalled();
   });
 
@@ -126,7 +123,7 @@ describe("Join", () => {
     await user.click(screen.getByRole("button", { name: "입장" }));
 
     await waitFor(() => {
-      expect(window.alert).toHaveBeenCalledWith(ROOM_ERROR_MESSAGES.WRONG_PASSWORD);
+      expect(toasts()).toEqual([ROOM_ERROR_MESSAGES.WRONG_PASSWORD]);
     });
     expect(callApi).toHaveBeenCalledWith("rooms/join", {
       roomId: "room-1",

@@ -118,7 +118,7 @@ function DateDetail({ date, participants, availableFor }) {
   if (!date) {
     return (
       <div className="detail">
-        <span className="detail__hint">날짜를 누르면 선택되고, 그날 가능한 사람이 여기에 보여요</span>
+        <span className="detail__hint">날짜를 누르면 그날 가능한 사람이 여기에 보여요</span>
       </div>
     );
   }
@@ -141,34 +141,46 @@ function DateDetail({ date, participants, availableFor }) {
   );
 }
 
-function SaveButton({ dirty, saving, selectedCount, onSave }) {
-  let content;
-  let disabled = saving;
+function FooterActions({ editing, hasVoted, dirty, saving, selectedCount, onSave, onEdit, onCancel }) {
+  // 보기 모드: 저장된 투표가 있고 수정 중이 아님
+  if (!editing) {
+    return (
+      <div className="footer-bar">
+        <button type="button" className="btn btn--lg btn--ghost" onClick={onEdit}>
+          투표 수정하기 <span className="btn__badge btn__badge--soft">{selectedCount}일 선택됨</span>
+        </button>
+      </div>
+    );
+  }
 
+  let label;
   if (saving) {
-    content = "저장 중...";
-  } else if (dirty) {
-    content = (
+    label = "저장 중...";
+  } else if (selectedCount === 0 && !dirty) {
+    label = "가능한 날을 골라주세요";
+  } else {
+    label = (
       <>
         투표 저장 <span className="btn__badge">{selectedCount}일 선택</span>
       </>
     );
-  } else if (selectedCount > 0) {
-    content = (
-      <>
-        투표 완료 <span className="btn__badge">{selectedCount}일</span>
-      </>
-    );
-    disabled = true;
-  } else {
-    content = "가능한 날을 골라주세요";
-    disabled = true;
   }
 
+  // reason: 처음 투표할 때는 저장만, 수정할 때는 바꾸기 전으로 돌아갈 수 있게 취소도 둠
   return (
-    <div className="footer-bar">
-      <button type="button" className="btn btn--lg" onClick={onSave} disabled={disabled}>
-        {content}
+    <div className="footer-bar footer-bar--split">
+      {hasVoted && (
+        <button
+          type="button"
+          className="btn btn--lg btn--ghost footer-bar__cancel"
+          onClick={onCancel}
+          disabled={saving}
+        >
+          취소
+        </button>
+      )}
+      <button type="button" className="btn btn--lg" onClick={onSave} disabled={saving || !dirty}>
+        {label}
       </button>
     </div>
   );
@@ -180,6 +192,10 @@ export default function Room() {
     session,
     selected,
     dirty,
+    hasVoted,
+    editing,
+    startEditing,
+    cancelEditing,
     saving,
     busy,
     isHost,
@@ -189,7 +205,7 @@ export default function Room() {
     submitVote,
     kickUser,
     leaveRoom,
-    copyShareLink,
+    shareLink,
     getParticipantsForDate,
   } = useRoom();
 
@@ -210,8 +226,9 @@ export default function Room() {
     return participants.filter((name) => name === session.name || others.includes(name));
   };
 
-  const handleToggle = (date) => {
-    toggleDate(date);
+  // 수정 모드면 내 투표를 바꾸고, 보기 모드면 그날 가능한 사람만 보여줌
+  const handleDatePress = (date) => {
+    if (editing) toggleDate(date);
     setFocusDate(date);
   };
 
@@ -227,7 +244,7 @@ export default function Room() {
           )}
         </div>
         <div className="topbar__actions">
-          <button type="button" className="pill-btn" onClick={copyShareLink}>
+          <button type="button" className="pill-btn" onClick={shareLink}>
             공유
           </button>
           <button type="button" className="pill-btn" onClick={leaveRoom} disabled={busy}>
@@ -253,10 +270,12 @@ export default function Room() {
         colors={colors}
       />
 
-      <section className="card">
+      <section className={`card ${editing ? "card--editing" : ""}`}>
         <div className="card__head">
-          <h2 className="card__title">가능한 날을 눌러주세요</h2>
-          <span className="card__sub">진할수록 많이 가능</span>
+          <h2 className="card__title">{editing ? "가능한 날을 눌러주세요" : "날짜별 가능 인원"}</h2>
+          <span className="card__sub">
+            {editing ? "진할수록 많이 가능" : "날짜를 누르면 명단이 보여요"}
+          </span>
         </div>
 
         <VoteCalendar
@@ -265,17 +284,21 @@ export default function Room() {
           selected={selected}
           focusDate={detailDate}
           countFor={(date) => availableFor(date).length}
-          onToggle={handleToggle}
+          onToggle={handleDatePress}
         />
 
         <DateDetail date={detailDate} participants={participants} availableFor={availableFor} />
       </section>
 
-      <SaveButton
+      <FooterActions
+        editing={editing}
+        hasVoted={hasVoted}
         dirty={dirty}
         saving={saving}
         selectedCount={selected.length}
         onSave={submitVote}
+        onEdit={startEditing}
+        onCancel={cancelEditing}
       />
     </div>
   );

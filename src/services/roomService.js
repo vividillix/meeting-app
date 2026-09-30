@@ -138,9 +138,10 @@ export function buildShareLink(roomId) {
   return `${APP_ORIGIN}/join/${roomId}`;
 }
 
+// 공유·복사할 문구: "제목\n링크"
 export function buildShareText({ roomId, title }) {
   const url = buildShareLink(roomId);
   const trimmedTitle = title?.trim();
   if (!trimmedTitle) return url;
-  return `${trimmedTitle} ${url}`;
+  return `${trimmedTitle}\n${url}`;
 }

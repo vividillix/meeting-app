@@ -14,13 +14,13 @@ export const ROOM_ERRORS = {
 
 export const ROOM_ERROR_MESSAGES = {
   [ROOM_ERRORS.VALIDATION]: "입력값을 확인해 주세요",
-  [ROOM_ERRORS.ROOM_NOT_FOUND]: "존재하지 않는 방입니다",
-  [ROOM_ERRORS.USER_NOT_FOUND]: "존재하지 않는 사용자",
-  [ROOM_ERRORS.WRONG_PASSWORD]: "비밀번호 틀림",
-  [ROOM_ERRORS.DUPLICATE_NAME]: "이미 존재하는 닉네임",
-  [ROOM_ERRORS.ROOM_FULL]: "인원 가득",
-  [ROOM_ERRORS.NOT_HOST]: "방장만 가능합니다",
-  [ROOM_ERRORS.NOT_MEMBER]: "로그인 필요",
+  [ROOM_ERRORS.ROOM_NOT_FOUND]: "존재하지 않는 방이에요",
+  [ROOM_ERRORS.USER_NOT_FOUND]: "이 방에 없는 닉네임이에요",
+  [ROOM_ERRORS.WRONG_PASSWORD]: "비밀번호가 맞지 않아요",
+  [ROOM_ERRORS.DUPLICATE_NAME]: "이미 있는 닉네임이에요",
+  [ROOM_ERRORS.ROOM_FULL]: "방 인원이 가득 찼어요",
+  [ROOM_ERRORS.NOT_HOST]: "방장만 할 수 있어요",
+  [ROOM_ERRORS.NOT_MEMBER]: "먼저 입장해 주세요",
   [ROOM_ERRORS.ROOM_ID_CONFLICT]: "잠시 후 다시 시도해 주세요",
   [ROOM_ERRORS.TOO_MANY_ATTEMPTS]:
     "비밀번호를 여러 번 틀렸어요. 잠시 후 다시 시도해 주세요",

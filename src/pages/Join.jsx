@@ -1,3 +1,4 @@
+import SecretInput from "../components/SecretInput";
 import { NICKNAME_MAX_LENGTH } from "../constants/app";
 import { useJoinRoom } from "../features/room/useJoinRoom";
 import { formatMonthDay } from "../utils/date";
@@ -76,9 +77,8 @@ export default function Join() {
           onKeyDown={handleKeyDown}
         />
 
-        <input
+        <SecretInput
           className="input"
-          type="password"
           placeholder="비밀번호"
           aria-label="비밀번호"
           value={password}

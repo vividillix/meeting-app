@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useFeedback } from "../../components/feedback/feedbackContext";
 import { ROUTES } from "../../constants/routes";
 import { ROOM_ERRORS, getRoomErrorMessage } from "../../constants/roomErrors";
 import { ensureUser } from "../../lib/auth";
@@ -8,6 +9,7 @@ import * as roomService from "../../services/roomService";
 export function useJoinRoom() {
   const { id: roomId } = useParams();
   const nav = useNavigate();
+  const { toast } = useFeedback();
 
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,7 @@ export function useJoinRoom() {
           return;
         }
 
-        alert(getRoomErrorMessage(error, "방 정보를 불러오지 못했어요"));
+        toast(getRoomErrorMessage(error, "방 정보를 불러오지 못했어요"), { type: "error" });
         nav(ROUTES.HOME);
       } finally {
         if (!cancelled) setLoading(false);
@@ -57,7 +59,7 @@ export function useJoinRoom() {
     return () => {
       cancelled = true;
     };
-  }, [roomId, nav]);
+  }, [roomId, nav, toast]);
 
   const enter = async () => {
     if (submitting) return;
@@ -73,7 +75,9 @@ export function useJoinRoom() {
       });
       nav(ROUTES.room(roomId));
     } catch (error) {
-      alert(getRoomErrorMessage(error, "입장에 실패했어요. 다시 시도해 주세요"));
+      toast(getRoomErrorMessage(error, "입장에 실패했어요. 다시 시도해 주세요"), {
+        type: "error",
+      });
     } finally {
       setSubmitting(false);
     }
