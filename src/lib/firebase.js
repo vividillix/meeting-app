@@ -1,5 +1,4 @@
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -11,11 +10,9 @@ const firebaseConfig = {
   storageBucket: "meeting-app-d749e.firebasestorage.app",
   messagingSenderId: "448416067556",
   appId: "1:448416067556:web:527b5626a74d7e37b021f1",
-  measurementId: "G-DT9V0H3F5F",
 };
 
 const app = initializeApp(firebaseConfig);
-getAnalytics(app);
 
 export const db = getFirestore(app);
 export const auth = getAuth(app);
