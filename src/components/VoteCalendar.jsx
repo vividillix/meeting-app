@@ -7,6 +7,7 @@ export default function VoteCalendar({
   total,
   selected,
   focusDate,
+  finalDate,
   countFor,
   onToggle,
 }) {
@@ -54,6 +55,7 @@ export default function VoteCalendar({
                 level ? `cal-cell--heat-${level}` : "",
                 mine ? "cal-cell--mine" : "",
                 dateStr === focusDate ? "cal-cell--focus" : "",
+                dateStr === finalDate ? "cal-cell--final" : "",
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -64,7 +66,7 @@ export default function VoteCalendar({
                   type="button"
                   className={className}
                   aria-pressed={mine}
-                  aria-label={`${formatMonthDay(dateStr)} ${formatWeekday(dateStr)}, ${count}명 가능${mine ? ", 선택됨" : ""}`}
+                  aria-label={`${formatMonthDay(dateStr)} ${formatWeekday(dateStr)}, ${count}명 가능${mine ? ", 선택됨" : ""}${dateStr === finalDate ? ", 확정된 날" : ""}`}
                   onClick={() => onToggle(dateStr)}
                 >
                   {day}

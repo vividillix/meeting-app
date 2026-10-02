@@ -12,9 +12,10 @@ const baseRoom = () => ({
   title: "모임",
   maxPeople: 2,
   hostId: "alice",
-  dates: ["2026-10-01"],
-  votes: { alice: { dates: [] } },
   memberUids: { u1: "alice" },
+  members: { alice: { joinedAt: null } },
+  round: { no: 1, title: null, dates: ["2026-10-01"], votes: { alice: { dates: [] } }, status: "open" },
+  history: [],
 });
 
 async function expectRoomError(promise, code) {
@@ -74,7 +75,7 @@ describe("joinRoom", () => {
   });
 
   it("인원이 찬 방은 서버에 묻기 전에 안내한다", async () => {
-    const room = { ...baseRoom(), votes: { alice: {}, carol: {} } };
+    const room = { ...baseRoom(), members: { alice: {}, carol: {} } };
 
     await expectRoomError(
       roomService.joinRoom({ roomId: "r1", mode: "new", name: "bob", password: "pw", room }),
@@ -108,7 +109,7 @@ describe("getMemberName", () => {
     expect(roomService.getMemberName(room, "u1")).toBe("alice");
     expect(roomService.getMemberName(room, "u2")).toBeNull();
     expect(
-      roomService.getMemberName({ ...room, votes: {} }, "u1")
+      roomService.getMemberName({ ...room, members: {} }, "u1")
     ).toBeNull();
   });
 });
@@ -154,5 +155,94 @@ describe("buildShareText", () => {
     expect(roomService.buildShareText({ roomId: "abc123xyz9", title: "" })).toMatch(
       /^https?:\/\/\S+\/join\/abc123xyz9$/
     );
+  });
+});
+
+describe("방 설정", () => {
+  const room = {
+    ...baseRoom(),
+    members: { alice: {}, bob: {} },
+    round: {
+      no: 1,
+      title: null,
+      dates: ["2026-10-01", "2026-10-02", "2026-10-03"],
+      votes: { alice: { dates: ["2026-10-01", "2026-10-02"] }, bob: { dates: ["2026-10-03"] } },
+      status: "open",
+    },
+  };
+
+  it("기간을 바꾸면 지워질 투표를 미리 알려준다", () => {
+    expect(roomService.previewRangeChange(room, "2026-10-02", "2026-10-03")).toEqual({
+      removedCount: 1,
+      affected: ["alice"],
+    });
+    expect(roomService.previewRangeChange(room, "2026-10-01", "2026-10-03").removedCount).toBe(0);
+  });
+
+  it("참가자 수보다 적은 최대 인원은 서버에 보내지 않는다", async () => {
+    vi.clearAllMocks();
+    await expectRoomError(
+      roomService.updateRoomSettings({
+        roomId: "r1",
+        room,
+        title: "모임",
+        start: "2026-10-01",
+        end: "2026-10-03",
+        maxPeople: 1,
+      }),
+      ROOM_ERRORS.VALIDATION
+    );
+    expect(callApi).not.toHaveBeenCalled();
+  });
+
+  it("정리된 값으로 서버에 저장을 요청한다", async () => {
+    vi.clearAllMocks();
+    callApi.mockResolvedValue({ removedCount: 0 });
+    await roomService.updateRoomSettings({
+      roomId: "r1",
+      room,
+      title: " 새 이름 ",
+      start: "2026-10-01",
+      end: "2026-10-05",
+      maxPeople: 3,
+    });
+    expect(callApi).toHaveBeenCalledWith("rooms/update", {
+      roomId: "r1",
+      title: "새 이름",
+      roundTitle: null,
+      start: "2026-10-01",
+      end: "2026-10-05",
+      maxPeople: 3,
+    });
+  });
+});
+
+describe("다음 회차 열기", () => {
+  it("정리된 회차 제목과 기간으로 서버에 요청한다", async () => {
+    vi.clearAllMocks();
+    callApi.mockResolvedValue({ no: 2 });
+    await roomService.openNextRound({ roomId: "r1", start: "2026-11-01", end: "2026-11-03", title: "  " });
+    expect(callApi).toHaveBeenCalledWith("rooms/next", {
+      roomId: "r1",
+      start: "2026-11-01",
+      end: "2026-11-03",
+      title: null,
+    });
+  });
+
+  it("기간이 잘못되면 서버에 보내지 않는다", async () => {
+    vi.clearAllMocks();
+    await expectRoomError(
+      roomService.openNextRound({ roomId: "r1", start: "2026-11-05", end: "2026-11-01" }),
+      ROOM_ERRORS.VALIDATION
+    );
+    expect(callApi).not.toHaveBeenCalled();
+  });
+});
+
+describe("회차 표시", () => {
+  it("제목이 없으면 N회차, 있으면 제목", () => {
+    expect(roomService.roundLabel({ no: 3, title: null })).toBe("3회차");
+    expect(roomService.roundLabel({ no: 3, title: " 송년회 " })).toBe("송년회");
   });
 });

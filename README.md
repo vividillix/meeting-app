@@ -55,6 +55,27 @@ scripts/             예전 데이터 이전 스크립트
 > 5 → 6 → 7 순서를 지킬 것. 새 코드 배포 전에 규칙을 바꾸면 예전 코드가 동작하지 않고,
 > 규칙을 바꾼 뒤 이전을 미루면 예전 방에서 투표가 막힘.
 
+### 회차 기능(v2) 업데이트 순서
+
+방 문서 구조가 `members` + `round` + `history`로 바뀌었어요. 아래 순서대로 진행:
+
+1. `npm test` → `npm run lint` → 배포 (git push)
+2. 배포 직후 `npm run migrate:legacy -- --dry-run` → `npm run migrate:legacy`
+3. Firebase 콘솔에 새 `firestore.rules` 게시
+
+> 새 규칙은 `round` 구조의 방에서만 투표를 허용하므로, 꼭 이전(2)을 마친 뒤 게시(3)할 것.
+> 이전 전이라도 서버 함수는 예전 방을 열 때 자동으로 새 구조로 바꿔 줌.
+
+## 방 자동 삭제 (Firestore TTL) — 1회 설정
+
+방과 비밀번호 문서에는 `expireAt`(삭제 예정 시각)이 저장돼요.
+- 확정된 방: 확정일 + 3개월 / 확정 전 방: 마지막 후보 날짜 + 3개월
+
+Google Cloud 콘솔에서 TTL 정책을 켜야 실제로 지워져요. (만료 후 보통 24시간 안에 삭제)
+1. https://console.cloud.google.com/firestore/ttl 접속 → 프로젝트 `meeting-app-d749e` 선택
+2. **정책 만들기** → 컬렉션 그룹 `rooms`, 타임스탬프 필드 `expireAt` → 만들기
+3. 한 번 더 **정책 만들기** → 컬렉션 그룹 `roomSecrets`, 필드 `expireAt`
+
 ## 로컬 개발
 
 ```

@@ -20,9 +20,9 @@ const mockRoom = {
   title: "테스트 모임",
   maxPeople: 5,
   hostId: "alice",
-  votes: {
-    alice: { dates: [] },
-  },
+  members: { alice: { joinedAt: null } },
+  round: { no: 1, title: null, dates: ["2026-10-01"], votes: { alice: { dates: [] } }, status: "open" },
+  history: [],
   memberUids: { "uid-alice": "alice" },
 };
 

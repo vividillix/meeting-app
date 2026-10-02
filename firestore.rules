@@ -14,7 +14,12 @@ service cloud.firestore {
 
       allow create, delete: if false;
 
-      allow update: if isMember() && onlyOwnDatesChanged();
+      // 진행 중 회차(round)의 "내 투표 날짜"만 바꿀 수 있음. 날짜가 확정된 회차는 불가
+      allow update: if isMember() && isRoundOpen() && onlyOwnDatesChanged();
+
+      function isRoundOpen() {
+        return ('round' in resource.data) && resource.data.round.get('status', 'open') != 'closed';
+      }
 
       function isMember() {
         return request.auth != null
@@ -28,10 +33,11 @@ service cloud.firestore {
       }
 
       function onlyOwnDatesChanged() {
-        let before = resource.data;
-        let after = request.resource.data;
+        let before = resource.data.round;
+        let after = request.resource.data.round;
         let me = myName();
-        return after.diff(before).affectedKeys().hasOnly(['votes'])
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['round'])
+          && after.diff(before).affectedKeys().hasOnly(['votes'])
           && me in before.votes
           && after.votes.diff(before.votes).affectedKeys().hasOnly([me])
           && after.votes[me].keys().hasOnly(['dates'])

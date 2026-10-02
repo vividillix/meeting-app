@@ -38,18 +38,24 @@ export function useRoom() {
   const myName = room && uid ? roomService.getMemberName(room, uid) : null;
   const session = myName ? { id: roomId, name: myName } : null;
 
-  const votes = useMemo(() => room?.votes || {}, [room]);
+  // 진행 중 회차의 투표 (회차 구조: room.round.votes)
+  const votes = useMemo(() => roomService.roundVotes(room), [room]);
   const serverSelected = myName ? votes[myName]?.dates || [] : [];
-  const selected = pendingSelected ?? serverSelected;
+  // reason: 방장이 기간을 줄이면, 수정 중이던 선택에서도 범위 밖 날짜를 뺌
+  const roomDates = roomService.roundDates(room);
+  const selected = (pendingSelected ?? serverSelected).filter((d) => roomDates.includes(d));
   // 저장하지 않은 변경이 있는지 (순서와 무관하게 비교)
   const dirty =
     pendingSelected !== null &&
-    (pendingSelected.length !== serverSelected.length ||
-      pendingSelected.some((d) => !serverSelected.includes(d)));
+    (selected.length !== serverSelected.length ||
+      selected.some((d) => !serverSelected.includes(d)));
 
   // reason: 저장한 뒤에는 날짜를 눌러도 명단만 보이게 하고, "수정하기"를 눌러야 투표가 바뀌게 함
   const hasVoted = serverSelected.length > 0;
-  const editing = editingOverride ?? !hasVoted;
+  // 날짜가 확정된 방은 투표가 끝나서 항상 보기 모드
+  const closed = roomService.isClosed(room);
+  const finalDate = roomService.finalDateOf(room);
+  const editing = !closed && (editingOverride ?? !hasVoted);
 
   const startEditing = () => setEditingOverride(true);
 
@@ -58,7 +64,7 @@ export function useRoom() {
     setEditingOverride(false);
   };
   const isHost = !!myName && myName === room?.hostId;
-  const participants = Object.keys(votes);
+  const participants = roomService.memberNames(room);
 
   const voteSummary = useMemo(() => roomService.computeVoteSummary(votes), [votes]);
 
@@ -112,7 +118,7 @@ export function useRoom() {
 
   const toggleDate = (date) => {
     if (!editing) return;
-    const current = pendingSelected ?? serverSelected;
+    const current = selected;
     setPendingSelected(
       current.includes(date)
         ? current.filter((d) => d !== date)
@@ -123,7 +129,7 @@ export function useRoom() {
   const submitVote = async () => {
     if (saving || !myName) return;
 
-    const dates = pendingSelected ?? serverSelected;
+    const dates = selected;
     setSaving(true);
 
     try {
@@ -251,6 +257,46 @@ export function useRoom() {
     }
   };
 
+  // 방장: 날짜 확정 (확정창에서 고른 날짜)
+  const finalize = async (date) => {
+    if (!isHost || busy) return false;
+    setBusy(true);
+    try {
+      await roomService.finalizeRoom({ roomId, date });
+      setPendingSelected(null);
+      setEditingOverride(null);
+      toast("약속 날짜를 확정했어요");
+      return true;
+    } catch (error) {
+      toast(getRoomErrorMessage(error, "확정에 실패했어요. 다시 시도해 주세요"), { type: "error" });
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // 방장: 확정 취소
+  const reopen = async () => {
+    if (!isHost || busy) return;
+
+    const ok = await confirm({
+      title: "확정을 취소할까요?",
+      message: "다시 투표할 수 있게 열려요. 참가자들의 기존 투표는 그대로 남아 있어요.",
+      confirmText: "확정 취소",
+    });
+    if (!ok) return;
+
+    setBusy(true);
+    try {
+      await roomService.reopenRoom({ roomId });
+      toast("다시 투표할 수 있게 열었어요");
+    } catch (error) {
+      toast(getRoomErrorMessage(error, "확정 취소에 실패했어요. 다시 시도해 주세요"), { type: "error" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const getParticipantsForDate = (date) =>
     roomService.getParticipantsForDate(votes, date);
 
@@ -266,6 +312,12 @@ export function useRoom() {
     dirty,
     hasVoted,
     editing,
+    closed,
+    finalDate,
+    votes,
+    dates: roomDates,
+    finalize,
+    reopen,
     startEditing,
     cancelEditing,
     saving,

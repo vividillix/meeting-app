@@ -10,7 +10,7 @@ import {
   planJoinNew,
   planLogin,
 } from "../_lib/roomPlans.js";
-import { roomRefs, secretMembersOf } from "../_lib/rooms.js";
+import { prepareRoom, roomRefs, secretMembersOf } from "../_lib/rooms.js";
 
 const MERGE = { merge: true };
 
@@ -21,9 +21,9 @@ async function joinAsNew({ roomId, name, password, uid }) {
   // reason: 읽기와 쓰기를 트랜잭션으로 묶어 동시 입장 시 닉네임 중복·인원 초과를 막음
   await adminDb.runTransaction(async (tx) => {
     const roomSnap = await tx.get(roomRef);
-    if (!roomSnap.exists) throwRoomError(ROOM_ERRORS.ROOM_NOT_FOUND);
+    const room = prepareRoom(tx, roomRef, roomSnap);
 
-    const patch = planJoinNew({ room: roomSnap.data(), name, uid });
+    const patch = planJoinNew({ room, name, uid });
 
     tx.set(roomRef, toFirestorePatch(patch), MERGE);
     tx.set(secretRef, { members: { [name]: newSecretEntry(hash) } }, MERGE);
@@ -35,9 +35,8 @@ async function loginExisting({ roomId, name, password, uid }) {
 
   const outcome = await adminDb.runTransaction(async (tx) => {
     const [roomSnap, secretSnap] = await tx.getAll(roomRef, secretRef);
-    if (!roomSnap.exists) throwRoomError(ROOM_ERRORS.ROOM_NOT_FOUND);
+    const room = prepareRoom(tx, roomRef, roomSnap);
 
-    const room = roomSnap.data();
     const patch = planLogin({ room, name, uid });
 
     const members = secretMembersOf(secretSnap);

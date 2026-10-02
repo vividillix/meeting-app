@@ -4,14 +4,25 @@ import { callApi } from "../lib/api";
 import * as roomRepository from "../repositories/roomRepository";
 import {
   assertCanJoinAsNew,
+  finalDateOf,
   getMemberName,
   hasMember,
+  isClosed,
   isValidRoomId,
+  memberNames,
+  roundDates,
+  roundLabel,
+  roundVotes,
+  trimVotesToDates,
   validateCredentials,
+  validateDateRange,
   validateRoomInput,
+  validateRoomSettings,
+  validateRoundTitle,
 } from "../shared/roomRules";
+import { generateDates, isValidDateStr } from "../utils/date";
 
-export { getMemberName };
+export { finalDateOf, getMemberName, isClosed, memberNames, roundDates, roundLabel, roundVotes };
 
 // 입력값은 여기서 먼저 검사해 빠르게 안내하고, 서버가 같은 규칙으로 다시 확인함
 export async function createRoom({ title, start, end, maxPeople, name, password }) {
@@ -81,6 +92,54 @@ export async function saveVote({ roomId, nickname, dates }) {
 
 export async function kickParticipant({ roomId, target }) {
   await callApi("rooms/kick", { roomId, target });
+}
+
+/**
+ * 기간을 바꾸면 지워질 투표 미리보기 (확인창용)
+ * 반환: { removedCount, affected: [닉네임] }
+ */
+export function previewRangeChange(room, start, end) {
+  if (!isValidDateStr(start) || !isValidDateStr(end) || start > end) {
+    return { removedCount: 0, affected: [] };
+  }
+  const { removedCount, affected } = trimVotesToDates(roundVotes(room), generateDates(start, end));
+  return { removedCount, affected };
+}
+
+// 방장 전용: 방 제목·회차 제목·기간·최대 인원 수정. 입력은 여기서 먼저 검사하고 서버가 다시 확인
+export async function updateRoomSettings({ roomId, room, title, roundTitle, start, end, maxPeople }) {
+  const { cleanTitle, cleanRoundTitle } = validateRoomSettings(room, {
+    title,
+    roundTitle,
+    start,
+    end,
+    maxPeople,
+  });
+  return callApi("rooms/update", {
+    roomId,
+    title: cleanTitle,
+    roundTitle: cleanRoundTitle,
+    start,
+    end,
+    maxPeople,
+  });
+}
+
+// 방장 전용: 다음 회차 열기 (지금 회차를 확정한 뒤에만). 반환: { no }
+export async function openNextRound({ roomId, start, end, title }) {
+  validateDateRange(start, end);
+  const cleanTitle = validateRoundTitle(title);
+  return callApi("rooms/next", { roomId, start, end, title: cleanTitle });
+}
+
+// 방장 전용: 날짜 확정 → 투표 종료
+export async function finalizeRoom({ roomId, date }) {
+  return callApi("rooms/finalize", { roomId, date });
+}
+
+// 방장 전용: 확정 취소 → 다시 투표
+export async function reopenRoom({ roomId }) {
+  await callApi("rooms/reopen", { roomId });
 }
 
 // 방장이면 방이 삭제됨 → { deleted: true }

@@ -78,6 +78,89 @@
   color: var(--color-text-muted);
 }
 
+/* 투표 화면 상단: 홈 · 제목 · 공유/메뉴 */
+.topbar--room {
+  align-items: center;
+  padding-left: 0.25rem;
+}
+
+.topbar__home {
+  margin-right: 0.125rem;
+}
+
+.topbar__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar--room .topbar__title {
+  font-size: 1.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.icon-btn:hover {
+  color: var(--color-ink);
+  border-color: var(--color-primary-3);
+}
+
+/* ⋯ 메뉴 */
+.more-menu {
+  position: relative;
+}
+
+.more-menu__list {
+  position: absolute;
+  top: calc(100% + 0.375rem);
+  right: 0;
+  z-index: 40;
+  min-width: 9rem;
+  padding: 0.375rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgba(31, 42, 85, 0.14);
+  animation: fade-in 0.12s ease-out;
+}
+
+.more-menu__item {
+  display: block;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  text-align: left;
+  font-size: 0.9375rem;
+  color: var(--color-ink);
+}
+
+.more-menu__item:hover:not(:disabled) {
+  background: var(--color-surface-soft);
+}
+
+.more-menu__item--danger {
+  color: var(--color-danger);
+}
+
+.more-menu__item:disabled {
+  opacity: 0.5;
+}
+
 /* ============ 카드 ============ */
 .card {
   background: var(--color-surface);
@@ -161,6 +244,142 @@
   border-radius: var(--radius-pill);
   background: var(--color-ink);
   transition: width 0.3s ease;
+}
+
+/* 확정된 약속 카드 */
+.hero--final {
+  background: var(--color-ink);
+  color: #fff;
+}
+
+.hero--final .hero__label,
+.hero--final .hero__weekday {
+  color: #C1D3FE;
+  opacity: 1;
+}
+
+.hero--final .avatar-stack .avatar {
+  border-color: var(--color-ink);
+}
+
+.hero__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.hero__action {
+  flex: 1;
+  min-height: 2.75rem;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.hero__notice {
+  margin-top: 0.875rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #C9D2EE;
+  word-break: keep-all;
+}
+
+/* 동점 날짜 칩 */
+.hero__ties {
+  margin-top: 1rem;
+}
+
+.hero__ties-label {
+  display: block;
+  margin-bottom: 0.4375rem;
+  font-size: var(--font-small);
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.chip {
+  padding: 0.3125rem 0.6875rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.65);
+  font-size: var(--font-small);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.chip--active {
+  background: var(--color-ink);
+  color: #fff;
+}
+
+/* 전체 순위 */
+.hero__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  margin-top: 0.875rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: var(--font-small);
+  font-weight: 600;
+  color: var(--color-ink);
+  opacity: 0.8;
+}
+
+.ranking {
+  margin: 0.625rem 0 0;
+  padding: 0.375rem;
+  list-style: none;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.ranking__row {
+  display: grid;
+  grid-template-columns: 2.25rem 4.5rem 1fr 2.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4375rem 0.5rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-size: var(--font-small);
+  color: var(--color-ink);
+  text-align: left;
+}
+
+.ranking__row--active {
+  background: #fff;
+}
+
+.ranking__rank {
+  font-weight: 700;
+}
+
+.ranking__bar {
+  height: 0.375rem;
+  border-radius: var(--radius-pill);
+  background: rgba(31, 42, 85, 0.08);
+  overflow: hidden;
+}
+
+.ranking__bar span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-ink);
+}
+
+.ranking__count {
+  text-align: right;
+  font-weight: 600;
 }
 
 .hero--empty .hero__date {
@@ -401,6 +620,16 @@ button.cal-cell:active {
   font-size: 0.5625rem;
   font-weight: 700;
   line-height: 1;
+}
+
+/* 확정된 날 */
+.cal-cell--final {
+  background: var(--color-ink) !important;
+  color: #fff;
+}
+
+.cal-cell--final .cal-cell__count {
+  opacity: 0.85;
 }
 
 .cal-cell--focus {
@@ -936,4 +1165,137 @@ button.cal-cell:active {
 
 .input--secret:not(:placeholder-shown) {
   letter-spacing: 0.15em;
+}
+
+/* 안내 박스 */
+.notice {
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-small);
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.notice--info {
+  background: var(--color-surface-soft);
+  color: var(--color-ink);
+}
+
+.notice--warn {
+  background: #FFF4E0;
+  color: #8A5A00;
+}
+
+/* 날짜 확정 창 */
+.dialog--sheet {
+  max-width: 22rem;
+}
+
+.pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  max-height: 45vh;
+  margin-top: 1rem;
+  overflow-y: auto;
+}
+
+.pick-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.6875rem 0.875rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.pick-item input {
+  accent-color: var(--color-ink);
+  margin: 0;
+}
+
+.pick-item--active {
+  border-color: var(--color-primary-line);
+  background: var(--color-surface-soft);
+}
+
+.pick-item__date {
+  flex: 1;
+  font-weight: 600;
+}
+
+.pick-item__count {
+  font-size: var(--font-small);
+  color: var(--color-text-muted);
+}
+
+.text-link {
+  display: block;
+  margin: 0.625rem auto 0;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  background: none;
+  font-size: var(--font-small);
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* 회차 */
+.topbar__round {
+  margin-right: 0.375rem;
+  font-weight: 600;
+  color: var(--color-sat);
+}
+
+.field__optional {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.footer-bar__new {
+  flex: 0 0 6.5rem;
+}
+
+/* 지난 약속 */
+.history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6875rem 0;
+  border-top: 1px solid var(--color-line);
+  font-size: 0.9375rem;
+}
+
+.history__item:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.history__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+
+.history__date {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.nowrap {
+  white-space: nowrap;
 }

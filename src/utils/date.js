@@ -36,6 +36,19 @@ export const generateDates = (start, end) => {
   return result;
 };
 
+// "2026-11-30" + 3개월 → "2027-02-28" (없는 날은 그 달 마지막 날로)
+export function addMonths(dateStr, months) {
+  const { year, month, day } = parseDateParts(dateStr);
+  const first = new Date(Date.UTC(year, month - 1 + months, 1));
+  const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  return toDateStr(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), Math.min(day, lastDay)));
+}
+
+// 그 날짜가 완전히 끝나는 순간 = 다음 날 0시(한국 시간)
+export function endOfDayKst(dateStr) {
+  return new Date(toUtcMs(dateStr) + DAY_MS - 9 * 60 * 60 * 1000);
+}
+
 export const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 // "2026-10-17" → { year, month, day, weekday(0=일) }

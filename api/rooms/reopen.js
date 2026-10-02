@@ -2,15 +2,15 @@ import { ROOM_ERRORS, throwRoomError } from "../../src/constants/roomErrors.js";
 import { isValidRoomId } from "../../src/shared/roomRules.js";
 import { adminDb } from "../_lib/firebaseAdmin.js";
 import { createHandler, toFirestorePatch } from "../_lib/handler.js";
-import { DELETE, planKick } from "../_lib/roomPlans.js";
+import { planReopen } from "../_lib/roomPlans.js";
 import { prepareRoom, roomRefs } from "../_lib/rooms.js";
 
 const MERGE = { merge: true };
 
+// 방장 전용: 확정 취소 → 다시 투표 가능
 export default createHandler(async ({ uid, body }) => {
-  const { roomId, target } = body;
+  const { roomId } = body;
   if (!isValidRoomId(roomId)) throwRoomError(ROOM_ERRORS.ROOM_NOT_FOUND);
-  if (typeof target !== "string" || !target) throwRoomError(ROOM_ERRORS.VALIDATION);
 
   const { roomRef, secretRef } = roomRefs(roomId);
 
@@ -18,11 +18,10 @@ export default createHandler(async ({ uid, body }) => {
     const roomSnap = await tx.get(roomRef);
     const room = prepareRoom(tx, roomRef, roomSnap);
 
-    // 방장인지는 요청한 기기(uid)가 방장 닉네임으로 로그인돼 있는지로 판단
-    const patch = planKick({ room, uid, target });
+    const patch = planReopen({ room, uid });
 
     tx.set(roomRef, toFirestorePatch(patch), MERGE);
-    tx.set(secretRef, toFirestorePatch({ members: { [target]: DELETE } }), MERGE);
+    tx.set(secretRef, { expireAt: patch.expireAt }, MERGE);
   });
 
   return {};

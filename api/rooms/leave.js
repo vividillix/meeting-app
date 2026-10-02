@@ -3,7 +3,7 @@ import { isValidRoomId } from "../../src/shared/roomRules.js";
 import { adminDb } from "../_lib/firebaseAdmin.js";
 import { createHandler, toFirestorePatch } from "../_lib/handler.js";
 import { DELETE, planLeave } from "../_lib/roomPlans.js";
-import { roomRefs } from "../_lib/rooms.js";
+import { prepareRoom, roomRefs } from "../_lib/rooms.js";
 
 const MERGE = { merge: true };
 
@@ -16,9 +16,9 @@ export default createHandler(async ({ uid, body }) => {
 
   const deleted = await adminDb.runTransaction(async (tx) => {
     const roomSnap = await tx.get(roomRef);
-    if (!roomSnap.exists) throwRoomError(ROOM_ERRORS.ROOM_NOT_FOUND);
+    const room = prepareRoom(tx, roomRef, roomSnap);
 
-    const plan = planLeave({ room: roomSnap.data(), uid });
+    const plan = planLeave({ room, uid });
 
     if (plan.deleteRoom) {
       tx.delete(roomRef);

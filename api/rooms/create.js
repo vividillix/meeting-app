@@ -28,7 +28,10 @@ export default createHandler(async ({ uid, body }) => {
 
     // create()는 문서가 이미 있으면 실패 → 기존 방을 덮어쓰지 않음
     batch.create(roomRef, room);
-    batch.create(secretRef, { members: { [cleanName]: newSecretEntry(hash) } });
+    batch.create(secretRef, {
+      members: { [cleanName]: newSecretEntry(hash) },
+      expireAt: room.expireAt,
+    });
 
     try {
       await batch.commit();

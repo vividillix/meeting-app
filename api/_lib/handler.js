@@ -15,6 +15,8 @@ const STATUS_BY_CODE = {
   [ROOM_ERRORS.ROOM_FULL]: 409,
   [ROOM_ERRORS.TOO_MANY_ATTEMPTS]: 429,
   [ROOM_ERRORS.ROOM_ID_CONFLICT]: 503,
+  [ROOM_ERRORS.ROOM_CLOSED]: 409,
+  [ROOM_ERRORS.ROOM_NOT_CLOSED]: 409,
 };
 
 async function verifyUser(req) {
@@ -46,6 +48,8 @@ function parseBody(req) {
 // roomPlans의 DELETE 표시를 Firestore 필드 삭제로 바꿈
 export function toFirestorePatch(value) {
   if (value === DELETE) return FieldValue.delete();
+  // reason: 날짜(Date)는 Firestore가 시각 값으로 저장하므로 그대로 둠
+  if (value instanceof Date) return value;
   if (value && typeof value === "object" && !Array.isArray(value)) {
     return Object.fromEntries(
       Object.entries(value).map(([key, inner]) => [key, toFirestorePatch(inner)])

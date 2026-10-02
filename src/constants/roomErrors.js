@@ -10,6 +10,8 @@ export const ROOM_ERRORS = {
   ROOM_ID_CONFLICT: "ROOM_ID_CONFLICT",
   TOO_MANY_ATTEMPTS: "TOO_MANY_ATTEMPTS",
   UNAUTHENTICATED: "UNAUTHENTICATED",
+  ROOM_CLOSED: "ROOM_CLOSED",
+  ROOM_NOT_CLOSED: "ROOM_NOT_CLOSED",
 };
 
 export const ROOM_ERROR_MESSAGES = {
@@ -25,6 +27,8 @@ export const ROOM_ERROR_MESSAGES = {
   [ROOM_ERRORS.TOO_MANY_ATTEMPTS]:
     "비밀번호를 여러 번 틀렸어요. 잠시 후 다시 시도해 주세요",
   [ROOM_ERRORS.UNAUTHENTICATED]: "접속 정보가 만료됐어요. 새로고침해 주세요",
+  [ROOM_ERRORS.ROOM_CLOSED]: "이미 날짜가 확정된 약속이에요",
+  [ROOM_ERRORS.ROOM_NOT_CLOSED]: "아직 확정되지 않은 약속이에요",
 };
 
 export function throwRoomError(code, message = ROOM_ERROR_MESSAGES[code]) {
