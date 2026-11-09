@@ -4,6 +4,8 @@ import { useFeedback } from "../../components/feedback/feedbackContext";
 import { ROUTES } from "../../constants/routes";
 import { getRoomErrorMessage } from "../../constants/roomErrors";
 import { ensureUser } from "../../lib/auth";
+import { sendKakaoShare } from "../../lib/kakao";
+import { buildKakaoTemplate } from "../../services/kakaoShare";
 import * as roomService from "../../services/roomService";
 
 /**
@@ -257,6 +259,24 @@ export function useRoom() {
     }
   };
 
+  // reason: 확정 직후 공유창에서 누를 때 실시간으로 바뀐 최신 방 정보로 카드를 만들기 위함
+  const latestRoomRef = useRef(room);
+  useEffect(() => {
+    latestRoomRef.current = room;
+  }, [room]);
+
+  // 카카오톡 공유 카드 보내기. 실패하면 기존 공유(공유창·복사)로 넘어감
+  const shareKakao = async () => {
+    const current = latestRoomRef.current;
+    if (!current) return;
+    try {
+      await sendKakaoShare(buildKakaoTemplate({ room: current, roomId }));
+    } catch {
+      toast("카카오톡 공유를 열지 못했어요. 다른 방법으로 공유할게요", { type: "error" });
+      await shareLink();
+    }
+  };
+
   // 방장: 날짜 확정 (확정창에서 고른 날짜)
   const finalize = async (date) => {
     if (!isHost || busy) return false;
@@ -265,7 +285,7 @@ export function useRoom() {
       await roomService.finalizeRoom({ roomId, date });
       setPendingSelected(null);
       setEditingOverride(null);
-      toast("약속 날짜를 확정했어요");
+      // reason: 확정 직후 "약속 날짜를 확정했어요" 공유 안내 창이 뜨므로 토스트는 생략
       return true;
     } catch (error) {
       toast(getRoomErrorMessage(error, "확정에 실패했어요. 다시 시도해 주세요"), { type: "error" });
@@ -330,6 +350,7 @@ export function useRoom() {
     kickUser,
     leaveRoom,
     shareLink,
+    shareKakao,
     getParticipantsForDate,
     isDateSelectedByOthers,
   };

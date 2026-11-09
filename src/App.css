@@ -1299,3 +1299,25 @@ button.cal-cell:active {
 .nowrap {
   white-space: nowrap;
 }
+
+/* 공유 방법 고르기 (카카오톡 / 그 밖의 앱) */
+.share-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.125rem;
+}
+
+.btn--kakao {
+  background: #FEE500;
+  color: #191600;
+}
+
+.btn--kakao:hover:not(:disabled) {
+  background: #F5DC00;
+}
+
+.share-options__close {
+  display: block;
+  margin: 0.875rem auto 0;
+}

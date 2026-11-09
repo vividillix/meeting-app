@@ -5,10 +5,12 @@ import FinalizeSheet from "../components/FinalizeSheet";
 import { useFeedback } from "../components/feedback/feedbackContext";
 import { ChevronIcon, HomeIcon } from "../components/icons";
 import MoreMenu from "../components/MoreMenu";
+import ShareSheet from "../components/ShareSheet";
 import { ROOM_RETENTION_MONTHS } from "../constants/limits";
 import { ROUTES } from "../constants/routes";
 import VoteCalendar from "../components/VoteCalendar";
 import { useRoom } from "../features/room/useRoom";
+import { isKakaoShareEnabled, preloadKakao } from "../lib/kakao";
 import { buildShareLink, roundLabel } from "../services/roomService";
 import { buildAvatarColors } from "../utils/avatar";
 import { downloadIcs, googleCalendarUrl } from "../utils/calendarExport";
@@ -345,6 +347,8 @@ function FooterActions({ editing, hasVoted, dirty, saving, selectedCount, onSave
   );
 }
 
+const ANNOUNCE_MESSAGE = "카톡방에 새 투표를 알려주세요.";
+
 export default function Room() {
   const {
     room,
@@ -371,6 +375,7 @@ export default function Room() {
     kickUser,
     leaveRoom,
     shareLink,
+    shareKakao,
     getParticipantsForDate,
   } = useRoom();
 
@@ -380,6 +385,33 @@ export default function Room() {
   const [showFinalize, setShowFinalize] = useState(false);
   const location = useLocation();
   const announcedRef = useRef(false);
+  // 공유 방법 고르는 창 (카카오 키가 있을 때만). { title, message } 또는 null
+  // reason: 다음 회차를 막 열고 들어온 경우엔 처음부터 "투표가 열렸어요" 안내와 함께 띄움
+  const [shareSheet, setShareSheet] = useState(() =>
+    location.state?.announceRound && isKakaoShareEnabled() ? { announceRound: true } : null
+  );
+
+  useEffect(() => {
+    preloadKakao();
+  }, []);
+
+  /**
+   * 공유 열기. prompt가 있으면 "~했어요, 알려줄까요?" 안내와 함께 엶.
+   * 카카오 키가 없으면 예전처럼 기기 공유창·링크 복사로 바로 감
+   */
+  const openShare = (prompt) => {
+    if (isKakaoShareEnabled()) {
+      setShareSheet(prompt || {});
+      return;
+    }
+    if (!prompt) {
+      shareLink();
+      return;
+    }
+    confirm({ ...prompt, confirmText: "공유하기", cancelText: "나중에" }).then((ok) => {
+      if (ok) shareLink();
+    });
+  };
 
   // reason: 다음 회차를 막 연 방장에게 링크를 다시 공유하라고 한 번 안내
   useEffect(() => {
@@ -387,9 +419,11 @@ export default function Room() {
     announcedRef.current = true;
     nav(location.pathname, { replace: true, state: null });
 
+    // 카카오 공유창은 위에서 이미 열어 둠. 키가 없으면 예전처럼 안내 후 기기 공유
+    if (isKakaoShareEnabled()) return;
     confirm({
       title: `${roundLabel(room.round)} 투표가 열렸어요`,
-      message: "카톡방에 링크를 다시 보내서 새 투표를 알려주세요.",
+      message: ANNOUNCE_MESSAGE,
       confirmText: "공유하기",
       cancelText: "나중에",
     }).then((ok) => {
@@ -453,6 +487,10 @@ export default function Room() {
     if (await finalize(date)) {
       setShowFinalize(false);
       setFocusDate(null);
+      openShare({
+        title: "약속 날짜를 확정했어요",
+        message: "카톡방에 확정된 날짜를 알려주세요.",
+      });
     }
   };
 
@@ -479,7 +517,7 @@ export default function Room() {
           )}
         </div>
         <div className="topbar__actions">
-          <button type="button" className="pill-btn" onClick={shareLink}>
+          <button type="button" className="pill-btn" onClick={() => openShare()}>
             공유
           </button>
           <MoreMenu items={menuItems} />
@@ -578,6 +616,24 @@ export default function Room() {
           busy={busy}
           onConfirm={handleFinalize}
           onClose={() => setShowFinalize(false)}
+        />
+      )}
+
+      {shareSheet && (
+        <ShareSheet
+          title={
+            shareSheet.announceRound ? `${roundLabel(room.round)} 투표가 열렸어요` : shareSheet.title
+          }
+          message={shareSheet.announceRound ? ANNOUNCE_MESSAGE : shareSheet.message}
+          onKakao={() => {
+            setShareSheet(null);
+            shareKakao();
+          }}
+          onOther={() => {
+            setShareSheet(null);
+            shareLink();
+          }}
+          onClose={() => setShareSheet(null)}
         />
       )}
     </div>

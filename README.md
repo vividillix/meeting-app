@@ -66,6 +66,25 @@ scripts/             예전 데이터 이전 스크립트
 > 새 규칙은 `round` 구조의 방에서만 투표를 허용하므로, 꼭 이전(2)을 마친 뒤 게시(3)할 것.
 > 이전 전이라도 서버 함수는 예전 방을 열 때 자동으로 새 구조로 바꿔 줌.
 
+## 카카오톡 공유 카드 — 1회 설정
+
+키를 넣지 않으면 공유 버튼은 예전처럼 기기 공유창·링크 복사만 써요.
+
+1. https://developers.kakao.com 로그인 → **앱 만들기** (이름: 약속 잡기)
+2. **[앱] > [플랫폼 키] > [JavaScript 키]** 에서 키 복사
+3. 같은 화면의 **JavaScript SDK 도메인**에 등록
+   - `https://meeting-app-orpin.vercel.app`
+   - `http://localhost:5173` (로컬 테스트용)
+4. **[앱] > [제품 링크 관리] > [웹 도메인]** 에 `https://meeting-app-orpin.vercel.app` 등록
+   (카드의 "투표하러 가기" 버튼이 이 주소로 열려요. 안 하면 버튼이 눌리지 않음)
+5. 키 넣기
+   - 로컬: `.env.local` 에 `VITE_KAKAO_JS_KEY=복사한키` 한 줄 추가 → `npm run dev` 다시 시작
+   - 배포: Vercel → Settings → Environment Variables 에 `VITE_KAKAO_JS_KEY` 추가 → 다시 배포
+     (`VITE_` 로 시작하는 값은 빌드할 때 들어가므로 추가 후 재배포 필요)
+
+> JavaScript 키는 브라우저에 그대로 보이는 공개용 키라 숨길 필요는 없어요. 대신 3번 도메인 등록으로 다른 사이트에서 못 쓰게 막혀요.
+> 카드 이미지는 `public/share/` 의 고정 이미지라서, 배포 전 로컬 테스트에서는 이미지가 비어 보일 수 있어요.
+
 ## 방 자동 삭제 (Firestore TTL) — 1회 설정
 
 방과 비밀번호 문서에는 `expireAt`(삭제 예정 시각)이 저장돼요.
